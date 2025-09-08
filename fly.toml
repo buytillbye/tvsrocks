@@ -1,0 +1,19 @@
+app = "stockscreener-ahjvjg"
+primary_region = "fra"
+
+[build]
+  # Fly сам згенерує образ для Node.js
+
+[processes]
+  app = "npm start"   # у тебе в package.json це "node app.js"
+
+[vm]
+  cpu_kind = "shared"
+  cpus = 1
+  memory = "256mb"
+
+[restart]
+  policy = "always"
+
+[experimental]
+  auto_rollback = true
