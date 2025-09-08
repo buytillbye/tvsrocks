@@ -1,16 +1,26 @@
-app = "stockscreener-ahjvjg"
-primary_region = "fra"
+# fly.toml app configuration file generated for stockscreener-ahjvjg on 2025-09-08T20:59:51+03:00
+#
+# See https://fly.io/docs/reference/configuration/ for information about how to use this file.
+#
 
-[build]
-  # авто-білд для Node, Dockerfile не потрібен
-
-[processes]
-  app = "npm start"  # у тебе це "node app.js"
-
-[vm]
-  cpu_kind = "shared"
-  cpus = 1
-  memory = "256mb"
+app = 'stockscreener-ahjvjg'
+primary_region = 'fra'
 
 [experimental]
   auto_rollback = true
+
+[build]
+
+[processes]
+  app = 'npm start'
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = 'off'
+  auto_start_machines = true
+  min_machines_running = 1
+  processes = ['app']
+
+[[vm]]
+  size = 'shared-cpu-1x'
