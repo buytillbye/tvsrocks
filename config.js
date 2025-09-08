@@ -48,7 +48,7 @@ export const parseConfig = () => Object.freeze({
   // Trading hours configuration
   premarketHours: Object.freeze({ 
     start: "04:00", 
-    end: "11:19" 
+    end: "09:30" 
   }),
   
   // Timeout configurations (extracted magic numbers)
