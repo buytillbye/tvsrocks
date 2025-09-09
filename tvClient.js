@@ -8,8 +8,9 @@ const TV_URL =
 const BROWSER_HEADERS_BASE = {
   accept: "text/plain, */*; q=0.01",
   "accept-language": "en-GB,en-US;q=0.9,en;q=0.8",
-  // тіло — JSON (не form-urlencoded)
-  "content-type": "application/json",
+  "content-type": "application/x-www-form-urlencoded; charset=UTF-8",
+  cookie: `cookiePrivacyPreferenceBannerProduction=notApplicable; _ga=GA1.1.1233116757.1734004669; cookiesSettings={"analytics":true,"advertising":true}; device_t=R0VrSjow.AAizKRrP0uQcTMAq1xE_Rjot7iZf-AglGFRZUXnmoLQ; sessionid=ps3tjml9pwgo0eia4474mmd8cz5cmnnw; sessionid_sign=v3:UWVBmsuemtowX2lH7FeQlIE+mod/yTkzuvn/YW7nwYY=; cachec=undefined; etg=undefined; _sp_ses.cf1a=*; __gads=ID=d2876515cc6b00e5:T=1734433395:RT=1735294276:S=ALNI_MbXqBgw-APh_FTuE7tMjJ1dEvaIwQ; __gpi=UID=00000f6eb8318f38:T=1734433395:RT=1735294276:S=ALNI_MZhEybiU55qAQ2c4QrdylUZ6R9Fsw; __eoi=ID=5a818a91a5f23c95:T=1734433395:RT=1735294276:S=AA-AfjYNnLIQmiLzNa53s5Vtmxt_; _ga_YVVRYGL0E0=GS1.1.1735289226.39.1.1735299449.55.0.0; _sp_id.cf1a=8df46967-1481-48be-87d0-9dfa6267ef39.1734004669.27.1735299474.1735251939.91ba81de-eea2-4a01-85bf-4a3543965ef8.a370f917-9108-4b3f-a764-2cf59b92873d.4a6adab4-366d-4358-9a76-61d4485455b0.1735289226513.1140`,
+  priority: "u=1, i",
   "sec-ch-ua":
     '"Google Chrome";v="131", "Chromium";v="131", "Not_A Brand";v="24"',
   "sec-ch-ua-mobile": "?0",
@@ -17,12 +18,10 @@ const BROWSER_HEADERS_BASE = {
   "sec-fetch-dest": "empty",
   "sec-fetch-mode": "cors",
   "sec-fetch-site": "same-site",
-  origin: "https://www.tradingview.com",
-  referer: "https://www.tradingview.com/",
 };
 
 // (!) опційно — якщо заданий COOKIE у .env, вийде ще більш «браузерно»
-const COOKIE = (process.env.COOKIE || "").trim();
+// const COOKIE = (process.env.COOKIE || "").trim();
 
 function nowTs() {
   return new Date().toISOString().split("T")[1].split(".")[0];
@@ -81,7 +80,7 @@ function mapRow(row) {
 // Низькорівневий fetch з ретраями, referrer/referrerPolicy і логами
 async function fetchWithBrowserHeaders(bodyObj, { timeoutMs = 12000, retries = 2 } = {}) {
   const headers = { ...BROWSER_HEADERS_BASE };
-  if (COOKIE) headers.cookie = COOKIE;
+  // if (COOKIE) headers.cookie = COOKIE;
 
   const payload = JSON.stringify(bodyObj);
 
@@ -92,6 +91,8 @@ async function fetchWithBrowserHeaders(bodyObj, { timeoutMs = 12000, retries = 2
       console.log(`[${ts}] → TV request (try ${attempt + 1}/${retries + 1})`);
       const res = await fetch(TV_URL, {
         method: "POST",
+        mode: "cors",
+        credentials: "include",
         signal,
         headers,
         referrer: "https://www.tradingview.com/",
@@ -130,26 +131,59 @@ async function fetchWithBrowserHeaders(bodyObj, { timeoutMs = 12000, retries = 2
 // Публічний API модуля: один стабільний метод
 async function getStocks10(preMarketThreshold = 10) {
   const body = {
-    filter: [
-      { left: "type", operation: "equal", right: "stock" },
-      { left: "subtype", operation: "in_range", right: ["common", "foreign-issuer"] },
-      { left: "exchange", operation: "in_range", right: ["AMEX", "NASDAQ", "NYSE"] },
-      { left: "is_primary", operation: "equal", right: true },
-      { left: "active_symbol", operation: "equal", right: true },
-      { left: "premarket_change", operation: "egreater", right: preMarketThreshold },
-      { left: "premarket_close", operation: "egreater", right: 0.8 },
-      { left: "premarket_volume", operation: "greater", right: 50000 },
-    ],
-    options: { lang: "en" },
-    markets: ["america"],
-    symbols: { query: { types: [] }, tickers: [] },
     columns: COLUMNS,
+    filter: [
+      { left: "premarket_volume", operation: "greater", right: 50000 },
+      { left: "premarket_change", operation: "greater", right: preMarketThreshold },
+      { left: "premarket_close", operation: "egreater", right: 0.8 }
+    ],
+    filter2: {
+      operator: "and",
+      operands: [{
+        operation: {
+          operator: "or",
+          operands: [
+            {
+              operation: {
+                operator: "and",
+                operands: [
+                  { expression: { left: "type", operation: "equal", right: "stock" } },
+                  { expression: { left: "typespecs", operation: "has", right: ["common"] } }
+                ]
+              }
+            },
+            {
+              operation: {
+                operator: "and", 
+                operands: [
+                  { expression: { left: "type", operation: "equal", right: "stock" } },
+                  { expression: { left: "typespecs", operation: "has", right: ["preferred"] } }
+                ]
+              }
+            },
+            {
+              operation: {
+                operator: "and",
+                operands: [
+                  { expression: { left: "type", operation: "equal", right: "dr" } }
+                ]
+              }
+            }
+          ]
+        }
+      }]
+    },
+    ignore_unknown_fields: false,
+    options: { lang: "en" },
+    range: [0, 100],
     sort: { sortBy: "premarket_change", sortOrder: "desc" },
-    range: [0, 150],
+    symbols: {},
+    markets: ["america"]
   };
 
   const t0 = Date.now();
   const data = await fetchWithBrowserHeaders(body, { timeoutMs: 12000, retries: 2 });
+  console.log(data);
   const dt = Date.now() - t0;
 
   const rows = Array.isArray(data?.data) ? data.data : [];
