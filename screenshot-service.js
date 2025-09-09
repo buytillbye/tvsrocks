@@ -113,6 +113,20 @@ class ScreenshotService {
         }
     }
 
+    async closeZoomTooltip() {
+        try {
+            // Чекаємо на появу тултпу та кнопки закриття
+            await this.page.waitForSelector('.closeButton-zLVm6B4t', { timeout: 3000 });
+            // Клікаємо кнопку закриття
+            await this.page.click('.closeButton-zLVm6B4t');
+            console.log("✅ Zoom tooltip closed");
+            // Чекаємо трохи, щоб анімація закриття завершилася
+            await this.page.waitForTimeout(500);
+        } catch (e) {
+            console.log("ℹ️ No zoom tooltip found or already closed");
+        }
+    }
+
     async takeScreenshot(suffix = "") {
         console.log("📸 Taking screenshot...");
         const timestamp = Date.now();
@@ -120,6 +134,9 @@ class ScreenshotService {
 
         // Чекаємо на завантаження графіка
         await this.page.waitForSelector('.chart-container.single-visible', { timeout: 10000 });
+        
+        // Закриваємо спливаючу підказку про збільшення
+        await this.closeZoomTooltip();
         
         // Отримуємо розміри та позицію контейнера графіка
         const chartElement = await this.page.$('.chart-container.single-visible');
