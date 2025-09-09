@@ -21,7 +21,27 @@ class ScreenshotService {
         console.log("🚀 Initializing browser...");
         this.browser = await chromium.launch({
             headless: true,
-            args: ['--no-sandbox', '--disable-setuid-sandbox']
+            args: [
+                '--no-sandbox',
+                '--disable-setuid-sandbox',
+                '--disable-dev-shm-usage',
+                '--disable-gpu',
+                '--disable-web-security',
+                '--disable-features=VizDisplayCompositor',
+                '--disable-extensions',
+                '--disable-plugins',
+                '--disable-images',
+                '--disable-javascript-harmony-shipping',
+                '--disable-background-timer-throttling',
+                '--disable-backgrounding-occluded-windows',
+                '--disable-renderer-backgrounding',
+                '--disable-field-trial-config',
+                '--disable-back-forward-cache',
+                '--disable-ipc-flooding-protection',
+                '--no-first-run',
+                '--no-default-browser-check',
+                '--memory-pressure-off'
+            ]
         });
         this.page = await this.browser.newPage();
         
@@ -35,16 +55,26 @@ class ScreenshotService {
         }]);
         
         await this.page.setViewportSize({ width: 3500, height: 1300 });
+        
+        // Disable additional resources for speed
+        await this.page.route('**/*', (route) => {
+            const resourceType = route.request().resourceType();
+            if (['image', 'font', 'media'].includes(resourceType)) {
+                route.abort();
+            } else {
+                route.continue();
+            }
+        });
         console.log("✅ Browser initialized with dark theme");
     }
 
     async navigateToChart() {
         console.log("🌐 Navigating to TradingView...");
         await this.page.goto('https://www.tradingview.com/chart/', {
-            waitUntil: 'networkidle',
-            timeout: 30000
+            waitUntil: 'domcontentloaded',
+            timeout: 15000
         });
-        await this.page.waitForSelector('#header-toolbar-symbol-search', { timeout: 15000 });
+        await this.page.waitForSelector('#header-toolbar-symbol-search', { timeout: 8000 });
         console.log("✅ TradingView loaded");
         
     }
@@ -54,29 +84,29 @@ class ScreenshotService {
 
         // Клік по пошуку
         await this.page.click('#header-toolbar-symbol-search');
-        await this.page.waitForSelector('input[data-role="search"]', { timeout: 5000 });
+        await this.page.waitForSelector('input[data-role="search"]', { timeout: 2000 });
 
-        // Вводимо символ
+        // Очищаємо поле та вводимо символ
+        await this.page.fill('input[data-role="search"]', '');
         await this.page.fill('input[data-role="search"]', SYMBOL);
         await this.page.press('input[data-role="search"]', 'Enter');
-        await this.page.waitForTimeout(3000);
+        
+        // Чекаємо завантаження графіка
+        await this.page.waitForSelector('.chart-container', { timeout: 5000 });
 
         console.log(`✅ ${SYMBOL} loaded`);
     }
 
     async selectTimeInterval(interval) {
         console.log(`⏱️ Setting time interval to ${interval}...`);
-        // if(interval != '240') {
-        //     await this.page.setViewportSize({ width: 1750, height: 650 });
-        // }
         try {
-            // Клік по кнопці інтервалу (D)
+            // Клік по кнопці інтервалу
             await this.page.click('#header-toolbar-intervals button');
-            await this.page.waitForTimeout(1000);
-
-            // Вибираємо інтервал з меню
+            
+            // Простіше очікування та клік
+            await this.page.waitForTimeout(200);
             await this.page.click(`div[data-value="${interval}"][data-role="menuitem"]`);
-            await this.page.waitForTimeout(2000);
+            await this.page.waitForTimeout(300);
 
             console.log(`✅ ${interval} interval selected`);
         } catch (e) {
@@ -88,9 +118,9 @@ class ScreenshotService {
         console.log("⏰ Switching to Extended Hours...");
         try {
             await this.page.click('button[data-name="session-menu"]');
-            await this.page.waitForTimeout(1000);
+            await this.page.waitForTimeout(200);
             await this.page.click('div[data-role="menuitem"]:has-text("Extended trading hours")');
-            await this.page.waitForTimeout(2000);
+            await this.page.waitForTimeout(300);
             console.log("✅ Extended Hours enabled");
         } catch (e) {
             console.log("⚠️ Extended Hours switch failed, continuing...");
@@ -104,10 +134,9 @@ class ScreenshotService {
             const chartElement = await this.page.$('.chart-container.single-visible');
             await chartElement.hover();
             
-            // Робимо 2 повних прокрути колесиком для zoom out
-            for (let i = 0; i < 5; i++) {
-                await this.page.mouse.wheel(0, 500); // Негативне значення для zoom out
-                await this.page.waitForTimeout(100); // Пауза між прокрутками
+            // Робимо 3 швидкі прокрути колесиком для zoom out
+            for (let i = 0; i < 3; i++) {
+                await this.page.mouse.wheel(0, 500);
             }
             
             console.log("✅ Chart zoomed out");
@@ -119,12 +148,12 @@ class ScreenshotService {
     async closeZoomTooltip() {
         try {
             // Чекаємо на появу тултпу та кнопки закриття
-            await this.page.waitForSelector('.closeButton-zLVm6B4t', { timeout: 3000 });
+            await this.page.waitForSelector('.closeButton-zLVm6B4t', { timeout: 500 });
             // Клікаємо кнопку закриття
             await this.page.click('.closeButton-zLVm6B4t');
             console.log("✅ Zoom tooltip closed");
-            // Чекаємо трохи, щоб анімація закриття завершилася
-            await this.page.waitForTimeout(500);
+            // Коротка пауза для зникнення
+            await this.page.waitForTimeout(100);
         } catch (e) {
             console.log("ℹ️ No zoom tooltip found or already closed");
         }
@@ -136,27 +165,18 @@ class ScreenshotService {
         const filename = `${SYMBOL.replace(':', '_')}_${suffix || timestamp}.png`;
 
         // Чекаємо на завантаження графіка
-        await this.page.waitForSelector('.chart-container.single-visible', { timeout: 10000 });
+        await this.page.waitForSelector('.chart-container.single-visible', { timeout: 3000 });
         
         // Закриваємо спливаючу підказку про збільшення
         await this.closeZoomTooltip();
         
         // Отримуємо розміри та позицію контейнера графіка
         const chartElement = await this.page.$('.chart-container.single-visible');
-        const boundingBox = await chartElement.boundingBox();
         
-        await this.page.screenshot({
-            path: filename,
-            fullPage: false,
-            clip: {
-                x: boundingBox.x,
-                y: boundingBox.y,
-                width: boundingBox.width,
-                height: boundingBox.height
-            }
-        });
+        // Оптимізований скріншот елемента
+        await chartElement.screenshot({ path: filename, type: 'png' });
 
-        console.log(`✅ Screenshot saved: ${filename} (${boundingBox.width}x${boundingBox.height})`);
+        console.log(`✅ Screenshot saved: ${filename}`);
         return filename;
     }
 
@@ -228,29 +248,28 @@ class ScreenshotService {
         try {
             // Open settings
             await this.page.click('#header-toolbar-properties');
-            await this.page.waitForTimeout(1000);
+            await this.page.waitForSelector('button[data-name="legend"]', { timeout: 1000 });
 
             // Click on Status line tab
             await this.page.click('button[data-name="legend"]');
-            await this.page.waitForTimeout(500);
+            await this.page.waitForSelector('div[data-section-name="ohlcTitle"] input[type="checkbox"]', { timeout: 1000 });
 
             // Toggle checkboxes in Status line
             await this.page.locator('div[data-section-name="ohlcTitle"] input[type="checkbox"]').click({ force: true });
-            await this.page.waitForTimeout(200);
             await this.page.locator('div[data-section-name="barChange"] input[type="checkbox"]').click({ force: true });
-            await this.page.waitForTimeout(200);
 
             // Click on Trading tab
             await this.page.click('button[data-name="trading"]');
-            await this.page.waitForTimeout(500);
+            await this.page.waitForSelector('div[data-section-name="tradingSellBuyPanel"] input[type="checkbox"]', { timeout: 1000 });
 
             // Toggle Buy/Sell buttons
             await this.page.locator('div[data-section-name="tradingSellBuyPanel"] input[type="checkbox"]').click({ force: true });
-            await this.page.waitForTimeout(200);
 
             // Apply changes
             await this.page.click('button[data-name="submit-button"]');
-            await this.page.waitForTimeout(1000);
+            
+            // Коротка пауза для закриття діалогу
+            await this.page.waitForTimeout(300);
 
             console.log("✅ Chart layout configured successfully");
         } catch (error) {
@@ -277,27 +296,18 @@ class ScreenshotService {
             await this.selectTimeInterval("240");
             await this.switchToExtendedHours();
             await this.zoomOutChart();
-            await this.page.waitForTimeout(2000);
             const chart4h = await this.takeScreenshot(`4h_${Date.now()}`);
 
             // Take 1M chart screenshot
             await this.selectTimeInterval("1");
-            await this.page.waitForTimeout(2000);
             const chart1m = await this.takeScreenshot(`1m_${Date.now()}`);
 
             // Stitch images vertically (4H, 1M from top to bottom)
             const stitchedImagePath = await this.stitchImages([chart4h, chart1m]);
+            
+            // Send to Telegram first, then cleanup
             await this.sendToTelegram(stitchedImagePath);
-
-            // Clean up files
-            try {
-                await fs.unlink(chart4h);
-                await fs.unlink(chart1m);
-                await fs.unlink(stitchedImagePath);
-                console.log("🗑️ Screenshot files deleted");
-            } catch (e) {
-                console.log("⚠️ Could not delete screenshot files");
-            }
+            await this.cleanupFiles([chart4h, chart1m, stitchedImagePath]);
 
             console.log("🎉 Screenshot process completed successfully!");
         } catch (error) {
@@ -305,6 +315,15 @@ class ScreenshotService {
             throw error;
         } finally {
             await this.cleanup();
+        }
+    }
+
+    async cleanupFiles(files) {
+        try {
+            await Promise.all(files.map(file => fs.unlink(file).catch(() => {})));
+            console.log("🗑️ Screenshot files deleted");
+        } catch (e) {
+            console.log("⚠️ Could not delete some screenshot files");
         }
     }
 }
