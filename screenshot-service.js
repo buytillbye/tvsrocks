@@ -161,35 +161,71 @@ class ScreenshotService {
     }
 
     async stitchImages(files) {
-        console.log("� Stitching images...");
+        console.log("🖼️ Stitching images...");
         const stitchedImagePath = `stitched_${Date.now()}.png`;
         
         try {
-            // Отримуємо метадані всіх зображень
-            const meta = await Promise.all(files.map(f => sharp(f).metadata()));
-            const maxWidth = Math.max(...meta.map(m => m.width || 0));
-            const totalHeight = meta.reduce((s, m) => s + (m.height || 0), 0);
+            // Get metadata for all images
+            const [topMeta, leftMeta, rightMeta] = await Promise.all(files.map(f => sharp(f).metadata()));
+            
+            // Calculate dimensions
+            const topWidth = topMeta.width || 0;
+            const topHeight = topMeta.height || 0;
+            
+            // Each bottom image should be half the width of the top image
+            const bottomWidth = Math.floor(topWidth / 2);
+            const bottomHeight = Math.max(leftMeta.height || 0, rightMeta.height || 0);
+            
+            // Resize bottom images to match dimensions
+            await sharp(files[1])
+                .resize(bottomWidth, bottomHeight, { fit: 'cover' })
+                .toFile('temp_left.png');
+                
+            await sharp(files[2])
+                .resize(bottomWidth, bottomHeight, { fit: 'cover' })
+                .toFile('temp_right.png');
 
-            // Створюємо композит з правильними позиціями
-            let y = 0;
-            const composite = files.map((f, i) => {
-                const item = { input: f, left: 0, top: y };
-                y += meta[i].height || 0;
-                return item;
-            });
-
-            // Створюємо фінальне зображення
+            // Create final image with proper layout
             await sharp({
                 create: {
-                    width: maxWidth,
-                    height: totalHeight,
+                    width: topWidth,
+                    height: topHeight + bottomHeight,
                     channels: 4,
                     background: { r: 255, g: 255, b: 255, alpha: 1 }
                 }
             })
-            .composite(composite)
+            .composite([
+                // Top image (centered)
+                {
+                    input: files[0],
+                    left: 0,
+                    top: 0
+                },
+                // Bottom left image
+                {
+                    input: 'temp_left.png',
+                    left: 0,
+                    top: topHeight
+                },
+                // Bottom right image
+                {
+                    input: 'temp_right.png',
+                    left: bottomWidth,
+                    top: topHeight
+                }
+            ])
             .png()
             .toFile(stitchedImagePath);
+
+            // Clean up temp files
+            try {
+                await Promise.all([
+                    fs.unlink('temp_left.png'),
+                    fs.unlink('temp_right.png')
+                ]);
+            } catch (e) {
+                console.log("⚠️ Could not delete temporary files:", e.message);
+            }
 
             console.log(`✅ Stitched image saved: ${stitchedImagePath}`);
             return stitchedImagePath;
