@@ -15,6 +15,16 @@ import { validateStockData, validateTradingViewResponse } from "./validation.js"
  */
 
 /**
+ * Validates if stock has acceptable float shares outstanding
+ * @param {Object} stock - Stock data object
+ * @returns {boolean} True if float is valid (not null and > 75M)
+ */
+export const isValidFloat = (stock) => {
+  const float = stock.float_shares_outstanding;
+  return float == null || float <= 75000000; // 75M або його чомусь нема
+};
+
+/**
  * Filters out stocks that have already been seen
  * @param {Array} stocks - Raw stock data from API
  * @param {Set} seenSymbols - Set of previously seen symbols
@@ -30,6 +40,13 @@ export const filterNewStocks = (stocks, seenSymbols) =>
         console.warn(`Invalid stock data: ${validation.errors.join(', ')}`, stock);
         return false;
       }
+      
+      // Check if float is valid (is null or <= 75M)
+      if (!isValidFloat(stock)) {
+        console.log(`Filtered out ${stock.symbol}: float ${stock.float_shares_outstanding} is null or <= 75M`);
+        return false;
+      }
+      
       return !seenSymbols.has(stock.symbol);
     });
 
