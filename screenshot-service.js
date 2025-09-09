@@ -21,11 +21,21 @@ class ScreenshotService {
         console.log("🚀 Initializing browser...");
         this.browser = await chromium.launch({
             headless: true,
-            args: ['--no-sandbox', '--disable-setuid-sandbox', '--flag-switches-begin', '--enable-features=DarkMode', '--flag-switches-end']
+            args: ['--no-sandbox', '--disable-setuid-sandbox']
         });
         this.page = await this.browser.newPage();
+        
+        // Set dark mode cookie for TradingView
+        await this.page.context().addCookies([{
+            name: 'theme',
+            value: 'dark',
+            domain: '.tradingview.com',
+            path: '/',
+            expires: Math.floor(Date.now() / 1000) + 86400 // 1 day
+        }]);
+        
         await this.page.setViewportSize({ width: 3500, height: 1300 });
-        console.log("✅ Browser initialized");
+        console.log("✅ Browser initialized with dark theme");
     }
 
     async navigateToChart() {
@@ -36,6 +46,7 @@ class ScreenshotService {
         });
         await this.page.waitForSelector('#header-toolbar-symbol-search', { timeout: 15000 });
         console.log("✅ TradingView loaded");
+        
     }
 
     async searchSymbol() {
