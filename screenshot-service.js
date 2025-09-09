@@ -66,9 +66,9 @@ class ScreenshotService {
 
     async selectTimeInterval(interval) {
         console.log(`⏱️ Setting time interval to ${interval}...`);
-        if(interval != '240') {
-            await this.page.setViewportSize({ width: 1750, height: 650 });
-        }
+        // if(interval != '240') {
+        //     await this.page.setViewportSize({ width: 1750, height: 650 });
+        // }
         try {
             // Клік по кнопці інтервалу (D)
             await this.page.click('#header-toolbar-intervals button');
@@ -165,67 +165,41 @@ class ScreenshotService {
         const stitchedImagePath = `stitched_${Date.now()}.png`;
         
         try {
-            // Get metadata for all images
-            const [topMeta, leftMeta, rightMeta] = await Promise.all(files.map(f => sharp(f).metadata()));
+            // Get metadata for both images
+            const [topMeta, bottomMeta] = await Promise.all([
+                sharp(files[0]).metadata(),
+                sharp(files[1]).metadata()
+            ]);
             
             // Calculate dimensions
-            const topWidth = topMeta.width || 0;
-            const topHeight = topMeta.height || 0;
+            const width = Math.max(topMeta.width || 0, bottomMeta.width || 0);
+            const height = (topMeta.height || 0) + (bottomMeta.height || 0);
             
-            // Each bottom image should be half the width of the top image
-            const bottomWidth = Math.floor(topWidth / 2);
-            const bottomHeight = Math.max(leftMeta.height || 0, rightMeta.height || 0);
-            
-            // Resize bottom images to match dimensions
-            await sharp(files[1])
-                .resize(bottomWidth, bottomHeight, { fit: 'cover' })
-                .toFile('temp_left.png');
-                
-            await sharp(files[2])
-                .resize(bottomWidth, bottomHeight, { fit: 'cover' })
-                .toFile('temp_right.png');
-
             // Create final image with proper layout
             await sharp({
                 create: {
-                    width: topWidth,
-                    height: topHeight + bottomHeight,
+                    width: width,
+                    height: height,
                     channels: 4,
                     background: { r: 255, g: 255, b: 255, alpha: 1 }
                 }
             })
             .composite([
-                // Top image (centered)
+                // Top image (4H chart)
                 {
                     input: files[0],
-                    left: 0,
+                    left: Math.floor((width - (topMeta.width || 0)) / 2), // Center horizontally
                     top: 0
                 },
-                // Bottom left image
+                // Bottom image (1M chart)
                 {
-                    input: 'temp_left.png',
-                    left: 0,
-                    top: topHeight
-                },
-                // Bottom right image
-                {
-                    input: 'temp_right.png',
-                    left: bottomWidth,
-                    top: topHeight
+                    input: files[1],
+                    left: Math.floor((width - (bottomMeta.width || 0)) / 2), // Center horizontally
+                    top: topMeta.height || 0
                 }
             ])
             .png()
             .toFile(stitchedImagePath);
-
-            // Clean up temp files
-            try {
-                await Promise.all([
-                    fs.unlink('temp_left.png'),
-                    fs.unlink('temp_right.png')
-                ]);
-            } catch (e) {
-                console.log("⚠️ Could not delete temporary files:", e.message);
-            }
 
             console.log(`✅ Stitched image saved: ${stitchedImagePath}`);
             return stitchedImagePath;
@@ -298,26 +272,27 @@ class ScreenshotService {
             await this.navigateToChart();
             await this.searchSymbol();
             await this.configureChartLayout();
-            await this.selectTimeInterval("240"); // 4 hours
+            
+            // Take 4H chart screenshot
+            await this.selectTimeInterval("240");
             await this.switchToExtendedHours();
             await this.zoomOutChart();
+            await this.page.waitForTimeout(2000);
+            const chart4h = await this.takeScreenshot(`4h_${Date.now()}`);
 
-            // Робимо 3 скріншоти для різних інтервалів
-            const images = [];
-            for (const interval of ["240", "15", "1"]) {
-                await this.selectTimeInterval(interval);
-                await this.page.waitForTimeout(2000); // Чекаємо оновлення графіка
-                const imagePath = await this.takeScreenshot(`${interval}_${Date.now()}`);
-                images.push(imagePath);
-            }
+            // Take 1M chart screenshot
+            await this.selectTimeInterval("1");
+            await this.page.waitForTimeout(2000);
+            const chart1m = await this.takeScreenshot(`1m_${Date.now()}`);
 
-            // Склеюємо зображення
-            const stitchedImagePath = await this.stitchImages(images);
+            // Stitch images vertically (4H, 1M from top to bottom)
+            const stitchedImagePath = await this.stitchImages([chart4h, chart1m]);
             await this.sendToTelegram(stitchedImagePath);
 
-            // Видаляємо файли після відправки
+            // Clean up files
             try {
-                await Promise.all(images.map(fs.unlink));
+                await fs.unlink(chart4h);
+                await fs.unlink(chart1m);
                 await fs.unlink(stitchedImagePath);
                 console.log("🗑️ Screenshot files deleted");
             } catch (e) {
@@ -325,7 +300,6 @@ class ScreenshotService {
             }
 
             console.log("🎉 Screenshot process completed successfully!");
-
         } catch (error) {
             console.error("❌ Error in screenshot process:", error.message);
             throw error;
