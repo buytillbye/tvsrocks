@@ -66,6 +66,9 @@ class ScreenshotService {
 
     async selectTimeInterval(interval) {
         console.log(`⏱️ Setting time interval to ${interval}...`);
+        if(interval != '240') {
+            await this.page.setViewportSize({ width: 1750, height: 650 });
+        }
         try {
             // Клік по кнопці інтервалу (D)
             await this.page.click('#header-toolbar-intervals button');
