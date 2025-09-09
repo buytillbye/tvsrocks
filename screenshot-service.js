@@ -261,8 +261,6 @@ class ScreenshotService {
             await this.page.waitForTimeout(500);
 
             // Toggle checkboxes in Status line
-            await this.page.locator('div[data-section-name="showOpenMarketStatus"] input[type="checkbox"]').click({ force: true });
-            await this.page.waitForTimeout(200);
             await this.page.locator('div[data-section-name="ohlcTitle"] input[type="checkbox"]').click({ force: true });
             await this.page.waitForTimeout(200);
             await this.page.locator('div[data-section-name="barChange"] input[type="checkbox"]').click({ force: true });
