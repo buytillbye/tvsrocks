@@ -248,6 +248,45 @@ class ScreenshotService {
         }
     }
 
+    async configureChartLayout() {
+        console.log("⚙️ Configuring chart layout...");
+        
+        try {
+            // Open settings
+            await this.page.click('#header-toolbar-properties');
+            await this.page.waitForTimeout(1000);
+
+            // Click on Status line tab
+            await this.page.click('button[data-name="legend"]');
+            await this.page.waitForTimeout(500);
+
+            // Toggle checkboxes in Status line
+            await this.page.locator('div[data-section-name="showOpenMarketStatus"] input[type="checkbox"]').click({ force: true });
+            await this.page.waitForTimeout(200);
+            await this.page.locator('div[data-section-name="ohlcTitle"] input[type="checkbox"]').click({ force: true });
+            await this.page.waitForTimeout(200);
+            await this.page.locator('div[data-section-name="barChange"] input[type="checkbox"]').click({ force: true });
+            await this.page.waitForTimeout(200);
+
+            // Click on Trading tab
+            await this.page.click('button[data-name="trading"]');
+            await this.page.waitForTimeout(500);
+
+            // Toggle Buy/Sell buttons
+            await this.page.locator('div[data-section-name="tradingSellBuyPanel"] input[type="checkbox"]').click({ force: true });
+            await this.page.waitForTimeout(200);
+
+            // Apply changes
+            await this.page.click('button[data-name="submit-button"]');
+            await this.page.waitForTimeout(1000);
+
+            console.log("✅ Chart layout configured successfully");
+        } catch (error) {
+            console.error("❌ Failed to configure chart layout:", error.message);
+            throw error;
+        }
+    }
+
     async cleanup() {
         if (this.browser) {
             await this.browser.close();
@@ -260,6 +299,7 @@ class ScreenshotService {
             await this.initBrowser();
             await this.navigateToChart();
             await this.searchSymbol();
+            await this.configureChartLayout();
             await this.selectTimeInterval("240"); // 4 hours
             await this.switchToExtendedHours();
             await this.zoomOutChart();
