@@ -6,6 +6,7 @@
  * @typedef {Object} StockData
  * @property {string} symbol - Stock symbol (e.g., "NASDAQ:AAPL")
  * @property {number} premarket_change - Percentage change in premarket
+ * @property {number} premarket_close - Premarket last/close price in dollars
  * @property {number} float_shares_outstanding - Float shares outstanding
  * @property {number} premarket_volume - Premarket trading volume
  */
@@ -36,14 +37,27 @@ export const formatNum = (n) => {
  * @param {StockData} stock - Stock data object
  * @returns {string} Formatted message for Telegram
  */
-export const createStockMessage = (stock) => [
-  `📈 ${stock.symbol}`,
-  `• Price: ${stock.premarket_close}%`,
-  `• Change: ${stock.premarket_change.toFixed(2)}%`,
-  `• Float: ${formatNum(stock.float_shares_outstanding)}`,
-  `• Vol: ${formatNum(stock.premarket_volume)}`,
-  `• $Dol-Vol$: ${formatNum(stock.premarket_volume * stock.premarket_close)}`,
-].join('\n');
+export const createStockMessage = (stock) => {
+  const price = (stock.premarket_close === null || stock.premarket_close === undefined || Number.isNaN(stock.premarket_close))
+    ? "-"
+    : `$${Number(stock.premarket_close).toFixed(2)}`;
+  const change = (stock.premarket_change === null || stock.premarket_change === undefined || Number.isNaN(stock.premarket_change))
+    ? "-"
+    : `${Number(stock.premarket_change).toFixed(2)}%`;
+  const floatStr = formatNum(stock.float_shares_outstanding);
+  const volStr = formatNum(stock.premarket_volume);
+  const dollarVolRaw = (Number(stock.premarket_volume) || 0) * (Number(stock.premarket_close) || 0);
+  const dollarVolStr = dollarVolRaw > 0 ? `$${formatNum(dollarVolRaw)}` : "-";
+
+  return [
+    `📈 ${stock.symbol}`,
+    `• Price: ${price}`,
+    `• Change: ${change}`,
+    `• Float: ${floatStr}`,
+    `• Vol: ${volStr}`,
+    `• $Dol-Vol$: ${dollarVolStr}`,
+  ].join('\n');
+};
 
 /**
  * Creates status message for scanner start/stop

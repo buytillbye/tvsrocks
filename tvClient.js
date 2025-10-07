@@ -64,7 +64,7 @@ const COLUMNS = Object.freeze([
   "minmove2",                // d[24]
   "currency",                // d[25]
   "fundamental_currency_code", // d[26]
-  "premarket_close"// d[2]
+  "premarket_close"// d[27]
 ]);
 
 // Маппер: гарантуємо сталі індекси
@@ -75,6 +75,7 @@ function mapRow(row) {
     premarket_change: Number(d[3] || 0),          // %
     premarket_volume: Number(d[5] || 0),
     float_shares_outstanding: Number(d[8] || 0),
+    premarket_close: Number(d[27] || 0),          // price
   });
 }
 
