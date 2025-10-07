@@ -21,7 +21,7 @@ import { validateStockData, validateTradingViewResponse } from "./validation.js"
  */
 export const isValidFloat = (stock) => {
   const float = stock.float_shares_outstanding;
-  return float == null || float <= 75000000; // 75M або його чомусь нема
+  return float == null || float <= 15000000; // 15M або його чомусь нема
 };
 
 /**
@@ -43,7 +43,7 @@ export const filterNewStocks = (stocks, seenSymbols) =>
       
       // Check if float is valid (is null or <= 75M)
       if (!isValidFloat(stock)) {
-        console.log(`Filtered out ${stock.symbol}: float ${stock.float_shares_outstanding} is null or <= 75M`);
+        console.log(`Filtered out ${stock.symbol}: float ${stock.float_shares_outstanding} is null or <= 15M`);
         return false;
       }
       

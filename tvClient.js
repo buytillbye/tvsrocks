@@ -63,7 +63,8 @@ const COLUMNS = Object.freeze([
   "fractional",              // d[23]
   "minmove2",                // d[24]
   "currency",                // d[25]
-  "fundamental_currency_code"// d[26]
+  "fundamental_currency_code", // d[26]
+  "premarket_close"// d[2]
 ]);
 
 // Маппер: гарантуємо сталі індекси

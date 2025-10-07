@@ -38,9 +38,11 @@ export const formatNum = (n) => {
  */
 export const createStockMessage = (stock) => [
   `📈 ${stock.symbol}`,
+  `• Price: ${stock.premarket_close}%`,
   `• Change: ${stock.premarket_change.toFixed(2)}%`,
   `• Float: ${formatNum(stock.float_shares_outstanding)}`,
-  `• Vol: ${formatNum(stock.premarket_volume)}`
+  `• Vol: ${formatNum(stock.premarket_volume)}`,
+  `• $Dol-Vol$: ${formatNum(stock.premarket_volume * stock.premarket_close)}`,
 ].join('\n');
 
 /**
