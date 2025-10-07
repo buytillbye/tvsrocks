@@ -9,7 +9,7 @@
  */
 
 /**
- * Validates TradingView API response structure
+ * Validates TradingView API response structure (test)
  * @param {any} data - Response data to validate
  * @returns {ValidationResult} Validation result
  */
