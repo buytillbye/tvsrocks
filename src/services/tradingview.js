@@ -20,9 +20,6 @@ const BROWSER_HEADERS_BASE = {
     "sec-fetch-site": "same-site",
 };
 
-// (!) опційно — якщо заданий COOKIE у .env, вийде ще більш «браузерно»
-// const COOKIE = (process.env.COOKIE || "").trim();
-
 function nowTs() {
     return new Date().toISOString().split("T")[1].split(".")[0];
 }
@@ -82,7 +79,6 @@ function mapRow(row) {
 // Низькорівневий fetch з ретраями, referrer/referrerPolicy і логами
 async function fetchWithBrowserHeaders(bodyObj, { timeoutMs = 12000, retries = 2 } = {}) {
     const headers = { ...BROWSER_HEADERS_BASE };
-    // if (COOKIE) headers.cookie = COOKIE;
 
     const payload = JSON.stringify(bodyObj);
 

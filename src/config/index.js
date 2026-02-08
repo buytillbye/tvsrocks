@@ -20,9 +20,15 @@ import "dotenv/config";
  * @property {number} timeouts.retryDelayMs - Retry delay for failed requests
  * @property {number} timeouts.shutdownGraceMs - Graceful shutdown delay
  * @property {number} timeouts.gatekeeperIntervalMs - Gatekeeper check interval
- * @property {Object} retry - Retry configuration
- * @property {number} retry.maxAttempts - Maximum retry attempts
- * @property {number} retry.backoffMultiplier - Backoff multiplier for retries
+ * @property {Object} api - API specific configurations
+ * @property {string} api.tradingViewUrl - TradingView scanner URL
+ * @property {string} api.userAgent - Browser user agent
+ * @property {string|null} api.tvCookie - Optional TradingView session cookie
+ * @property {Object} screenshot - Screenshot service configurations
+ * @property {Object} screenshot.viewport - Viewport dimensions
+ * @property {Array<string>} screenshot.blockedResources - List of resource types to block
+ * @property {Object} screenshot.cookies - Initial cookies for TradingView
+ * @property {Array<string>} screenshot.browserArgs - Chromium launch arguments
  */
 
 /**
@@ -70,6 +76,26 @@ export const parseConfig = () => Object.freeze({
     api: Object.freeze({
         tradingViewUrl: "https://scanner.tradingview.com/america/scan",
         userAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+    }),
+
+    // Screenshot configuration (extracted from screenshot.js)
+    screenshot: Object.freeze({
+        viewport: Object.freeze({ width: 2500, height: 1200 }),
+        blockedResources: Object.freeze(['image', 'font', 'media']),
+        browserArgs: Object.freeze([
+            '--no-sandbox',
+            '--disable-setuid-sandbox',
+            '--disable-dev-shm-usage',
+            '--disable-gpu',
+            '--disable-web-security',
+            '--disable-features=VizDisplayCompositor',
+            '--no-first-run',
+            '--memory-pressure-off'
+        ]),
+        intervals: Object.freeze({
+            top: "240", // 4H
+            bottom: "1" // 1M
+        })
     })
 });
 
