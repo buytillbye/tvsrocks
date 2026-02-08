@@ -6,6 +6,7 @@ import { parseConfig, validateConfig } from "./config/index.js";
 import { maskToken } from "./core/utils/index.js";
 import { createTelegramService } from "./services/telegram.js";
 import { createScanner } from "./services/scanner.js";
+import { createRvolService } from "./services/rvolService.js";
 import { createLogger } from "./core/logger.js";
 import { createGlobalErrorHandler, ConfigurationError } from "./core/errorHandler.js";
 import { validateConfig as validateConfigData } from "./config/validation.js";
@@ -34,6 +35,7 @@ const createApp = async () => {
 
         const telegramService = createTelegramService(config);
         const scanner = createScanner(config, telegramService);
+        const rvolService = createRvolService(config, telegramService);
         const globalErrorHandler = createGlobalErrorHandler(telegramService, logger);
 
         return Object.freeze({
@@ -49,13 +51,17 @@ const createApp = async () => {
                     });
 
                 scanner.startGatekeeper();
+                rvolService.start();
 
                 // Wait for launch to complete
                 await launchPromise;
 
                 logger.info('App', "Application started successfully");
             },
-            shutdown: scanner.shutdown,
+            shutdown: async () => {
+                await scanner.shutdown();
+                rvolService.stop();
+            },
             sendErrorMessage: telegramService.sendMessage,
             handleGlobalError: globalErrorHandler
         });

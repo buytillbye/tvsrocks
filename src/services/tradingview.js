@@ -61,7 +61,8 @@ const COLUMNS = Object.freeze([
     "minmove2",                // d[24]
     "currency",                // d[25]
     "fundamental_currency_code", // d[26]
-    "premarket_close"// d[27]
+    "premarket_close",           // d[27]
+    "relative_volume_intraday|5" // d[28]
 ]);
 
 // Маппер: гарантуємо сталі індекси
@@ -73,6 +74,7 @@ function mapRow(row) {
         premarket_volume: Number(d[5] || 0),
         float_shares_outstanding: Number(d[8] || 0),
         premarket_close: Number(d[27] || 0),          // price
+        rvol_intraday_5m: Number(d[28] || 0),         // RVOL 5m
     });
 }
 
@@ -188,8 +190,106 @@ async function getStocks10(preMarketThreshold = 10) {
     return rows;
 }
 
+// Новий метод для пошуку сплесків RVOL (за наданими користувачем параметрами)
+async function getRvolSurgeStocks(rvolThreshold = 2) {
+    const body = {
+        columns: [
+            "ticker-view", "Value.Traded", "type", "typespecs", "currency",
+            "relative_volume_10d_calc", "relative_volume_intraday|5", "volume",
+            "close", "pricescale", "minmov", "fractional", "minmove2", "change",
+            "float_shares_outstanding_current", "premarket_volume", "market_cap_basic",
+            "fundamental_currency_code", "premarket_change", "change_from_open",
+            "ATRP", "average_volume_10d_calc", "ATR", "volume_change", "gap"
+        ],
+        filter: [
+            { left: "close", operation: "egreater", right: 1 },
+            { left: "volume", operation: "greater", right: 5000000 },
+            { left: "relative_volume_intraday|5", operation: "greater", right: rvolThreshold },
+            { left: "is_primary", operation: "equal", right: true }
+        ],
+        ignore_unknown_fields: false,
+        options: { lang: "en" },
+        range: [0, 200],
+        sort: { sortBy: "relative_volume_intraday|5", sortOrder: "desc" },
+        symbols: {},
+        markets: ["america"],
+        filter2: {
+            operator: "and",
+            operands: [
+                {
+                    operation: {
+                        operator: "or",
+                        operands: [
+                            {
+                                operation: {
+                                    operator: "and",
+                                    operands: [
+                                        { expression: { left: "type", operation: "equal", right: "stock" } },
+                                        { expression: { left: "typespecs", operation: "has", right: ["common"] } }
+                                    ]
+                                }
+                            },
+                            {
+                                operation: {
+                                    operator: "and",
+                                    operands: [
+                                        { expression: { left: "type", operation: "equal", right: "stock" } },
+                                        { expression: { left: "typespecs", operation: "has", right: ["preferred"] } }
+                                    ]
+                                }
+                            },
+                            {
+                                operation: {
+                                    operator: "and",
+                                    operands: [
+                                        { expression: { left: "type", operation: "equal", right: "dr" } }
+                                    ]
+                                }
+                            },
+                            {
+                                operation: {
+                                    operator: "and",
+                                    operands: [
+                                        { expression: { left: "type", operation: "equal", right: "fund" } },
+                                        { expression: { left: "typespecs", operation: "has_none_of", right: ["etf"] } }
+                                    ]
+                                }
+                            }
+                        ]
+                    }
+                },
+                { expression: { left: "typespecs", operation: "has_none_of", right: ["pre-ipo"] } }
+            ]
+        }
+    };
+
+    const t0 = Date.now();
+    // Використовуємо ту саму логіку fetch з оригінальними кукі
+    const data = await fetchWithBrowserHeaders(body, { timeoutMs: 15000, retries: 2 });
+    const dt = Date.now() - t0;
+
+    const rows = Array.isArray(data?.data) ? data.data : [];
+    console.log(`[${nowTs()}] ✓ RVOL scan ok in ${dt}ms, totalCount=${data?.totalCount ?? "n/a"}, rows=${rows.length}`);
+    return rows;
+}
+
+// Маппер для спеціального RVOL запиту (індекси відрізняються)
+function mapRvolRow(row) {
+    const d = row.d || [];
+    return Object.freeze({
+        symbol: row.s,
+        close: Number(d[8] || 0),
+        rvol_intraday_5m: Number(d[6] || 0),
+        volume: Number(d[7] || 0),
+        change: Number(d[13] || 0),
+        premarket_change: Number(d[18] || 0),
+    });
+}
+
 // Freeze експорт, щоб не мутували випадково
 export const TvScanner = Object.freeze({
     getStocks10,
+    getRvolSurgeStocks,
     mapRow,
+    mapRvolRow,
 });

@@ -11,6 +11,8 @@ import "dotenv/config";
  * @property {number} premarketThreshold - Percentage threshold for stock alerts
  * @property {number} scanIntervalMs - Scan interval in milliseconds
  * @property {boolean} sendOnStartup - Whether to send all stocks on startup
+ * @property {number} rvolThreshold - RVOL surge threshold
+ * @property {number} rvolIntervalMs - RVOL scan interval
  * @property {Object} premarketHours - Premarket trading hours
  * @property {string} premarketHours.start - Start time (HH:MM)
  * @property {string} premarketHours.end - End time (HH:MM)
@@ -50,6 +52,8 @@ export const parseConfig = () => Object.freeze({
     premarketThreshold: Number(process.env.PREMARKET_THRESHOLD || 10),
     scanIntervalMs: Number(process.env.SCAN_INTERVAL_MS || 10000),
     sendOnStartup: String(process.env.SEND_ON_STARTUP || "false") === "true",
+    rvolThreshold: Number(process.env.RVOL_THRESHOLD || 2),
+    rvolIntervalMs: Number(process.env.RVOL_INTERVAL_MS || 10000),
 
     // Trading hours configuration
     premarketHours: Object.freeze({
