@@ -303,7 +303,7 @@ class ScreenshotService {
             console.log(`🔄 Processing ${symbol}...`);
 
             await this.searchSymbol(symbol);
-            
+
             // Конфігуруємо layout тільки для першого тікера
             if (!this.isInitialSetupComplete) {
                 await this.configureChartLayout();
@@ -313,12 +313,12 @@ class ScreenshotService {
 
             // Take 4H chart screenshot
             await this.selectTimeInterval("240");
-            
+
             // Extended hours тільки для першого тікера
             if (symbol === this.tickerQueue[0]) {
                 await this.switchToExtendedHours();
             }
-            
+
             await this.zoomOutChart();
             const chart4h = await this.takeScreenshot(symbol, `4h_${Date.now()}`);
 

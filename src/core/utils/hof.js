@@ -17,14 +17,14 @@ import { nowTs } from './time.js';
  * @returns {AsyncFunction} Function with retry capability
  */
 export const withRetry = (asyncFn, maxRetries = 2) => async (...args) => {
-  for (let attempt = 0; attempt <= maxRetries; attempt++) {
-    try {
-      return await asyncFn(...args);
-    } catch (error) {
-      if (attempt === maxRetries) throw error;
-      console.warn(`Retry ${attempt + 1}/${maxRetries + 1} failed:`, error.message);
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+        try {
+            return await asyncFn(...args);
+        } catch (error) {
+            if (attempt === maxRetries) throw error;
+            console.warn(`Retry ${attempt + 1}/${maxRetries + 1} failed:`, error.message);
+        }
     }
-  }
 };
 
 /**
@@ -34,24 +34,24 @@ export const withRetry = (asyncFn, maxRetries = 2) => async (...args) => {
  * @returns {Function} Function with logging
  */
 export const withLogging = (fn, logPrefix) => (...args) => {
-  const ts = nowTs();
-  console.log(`[${ts}] ${logPrefix}...`);
-  const result = fn(...args);
-  
-  if (result instanceof Promise) {
-    return result
-      .then(res => {
-        console.log(`[${ts}] ✓ ${logPrefix} completed`);
-        return res;
-      })
-      .catch(err => {
-        console.error(`[${ts}] ✖ ${logPrefix} failed:`, err.message);
-        throw err;
-      });
-  }
-  
-  console.log(`[${ts}] ✓ ${logPrefix} completed`);
-  return result;
+    const ts = nowTs();
+    console.log(`[${ts}] ${logPrefix}...`);
+    const result = fn(...args);
+
+    if (result instanceof Promise) {
+        return result
+            .then(res => {
+                console.log(`[${ts}] ✓ ${logPrefix} completed`);
+                return res;
+            })
+            .catch(err => {
+                console.error(`[${ts}] ✖ ${logPrefix} failed:`, err.message);
+                throw err;
+            });
+    }
+
+    console.log(`[${ts}] ✓ ${logPrefix} completed`);
+    return result;
 };
 
 /**
@@ -61,11 +61,11 @@ export const withLogging = (fn, logPrefix) => (...args) => {
  * @returns {Function} Debounced function
  */
 export const debounce = (fn, delay) => {
-  let timeoutId;
-  return (...args) => {
-    clearTimeout(timeoutId);
-    timeoutId = setTimeout(() => fn(...args), delay);
-  };
+    let timeoutId;
+    return (...args) => {
+        clearTimeout(timeoutId);
+        timeoutId = setTimeout(() => fn(...args), delay);
+    };
 };
 
 /**
@@ -75,12 +75,12 @@ export const debounce = (fn, delay) => {
  * @returns {Function} Throttled function
  */
 export const throttle = (fn, limit) => {
-  let inThrottle;
-  return (...args) => {
-    if (!inThrottle) {
-      fn(...args);
-      inThrottle = true;
-      setTimeout(() => inThrottle = false, limit);
-    }
-  };
+    let inThrottle;
+    return (...args) => {
+        if (!inThrottle) {
+            fn(...args);
+            inThrottle = true;
+            setTimeout(() => inThrottle = false, limit);
+        }
+    };
 };

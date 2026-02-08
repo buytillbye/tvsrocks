@@ -30,47 +30,47 @@ import "dotenv/config";
  * @param {string} rawChatId - Raw chat ID from environment
  * @returns {string|number} Parsed chat ID
  */
-const parseChatId = (rawChatId) => 
-  /^\-?\d+$/.test(rawChatId) ? Number(rawChatId) : rawChatId;
+const parseChatId = (rawChatId) =>
+    /^\-?\d+$/.test(rawChatId) ? Number(rawChatId) : rawChatId;
 
 /**
  * Parses configuration from environment variables
  * @returns {Config} Configuration object
  */
 export const parseConfig = () => Object.freeze({
-  botToken: process.env.BOT_TOKEN?.trim(),
-  chatId: parseChatId(process.env.CHAT_ID?.trim()),
-  threadId: process.env.THREAD_ID ? Number(process.env.THREAD_ID) : null,
-  premarketThreshold: Number(process.env.PREMARKET_THRESHOLD || 10),
-  scanIntervalMs: Number(process.env.SCAN_INTERVAL_MS || 10000),
-  sendOnStartup: String(process.env.SEND_ON_STARTUP || "false") === "true",
-  
-  // Trading hours configuration
-  premarketHours: Object.freeze({ 
-    start: "04:00", 
-    end: "09:30" 
-  }),
-  
-  // Timeout configurations (extracted magic numbers)
-  timeouts: Object.freeze({
-    launchTimeoutMs: 15000,       // Telegram launch timeout (increased from 5000)
-    fetchTimeoutMs: 30000,        // API fetch timeout
-    retryDelayMs: 2000,           // Base retry delay
-    shutdownGraceMs: 1000,        // Graceful shutdown delay
-    gatekeeperIntervalMs: 30000   // Gatekeeper check interval
-  }),
-  
-  // Retry configurations
-  retry: Object.freeze({
-    maxAttempts: 3,               // Maximum retry attempts
-    backoffMultiplier: 1.5        // Exponential backoff multiplier
-  }),
-  
-  // API configurations
-  api: Object.freeze({
-    tradingViewUrl: "https://scanner.tradingview.com/america/scan",
-    userAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
-  })
+    botToken: process.env.BOT_TOKEN?.trim(),
+    chatId: parseChatId(process.env.CHAT_ID?.trim()),
+    threadId: process.env.THREAD_ID ? Number(process.env.THREAD_ID) : null,
+    premarketThreshold: Number(process.env.PREMARKET_THRESHOLD || 10),
+    scanIntervalMs: Number(process.env.SCAN_INTERVAL_MS || 10000),
+    sendOnStartup: String(process.env.SEND_ON_STARTUP || "false") === "true",
+
+    // Trading hours configuration
+    premarketHours: Object.freeze({
+        start: "04:00",
+        end: "09:30"
+    }),
+
+    // Timeout configurations (extracted magic numbers)
+    timeouts: Object.freeze({
+        launchTimeoutMs: 15000,       // Telegram launch timeout (increased from 5000)
+        fetchTimeoutMs: 30000,        // API fetch timeout
+        retryDelayMs: 2000,           // Base retry delay
+        shutdownGraceMs: 1000,        // Graceful shutdown delay
+        gatekeeperIntervalMs: 30000   // Gatekeeper check interval
+    }),
+
+    // Retry configurations
+    retry: Object.freeze({
+        maxAttempts: 3,               // Maximum retry attempts
+        backoffMultiplier: 1.5        // Exponential backoff multiplier
+    }),
+
+    // API configurations
+    api: Object.freeze({
+        tradingViewUrl: "https://scanner.tradingview.com/america/scan",
+        userAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+    })
 });
 
 /**
@@ -80,8 +80,8 @@ export const parseConfig = () => Object.freeze({
  * @throws {Error} If configuration is invalid
  */
 export const validateConfig = (config) => {
-  if (!config.botToken || !config.chatId) {
-    throw new Error("❌ Missing BOT_TOKEN or CHAT_ID in .env");
-  }
-  return config;
+    if (!config.botToken || !config.chatId) {
+        throw new Error("❌ Missing BOT_TOKEN or CHAT_ID in .env");
+    }
+    return config;
 };

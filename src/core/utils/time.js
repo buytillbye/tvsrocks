@@ -18,27 +18,27 @@
  * Gets current timestamp in HH:MM:SS format
  * @returns {string} Current time as HH:MM:SS
  */
-export const nowTs = () => 
-  new Date().toISOString().split("T")[1].split(".")[0];
+export const nowTs = () =>
+    new Date().toISOString().split("T")[1].split(".")[0];
 
 /**
  * Gets current New York time with timezone handling (including DST)
  * @returns {NYTime} Object with hhmm and weekday properties
  */
 export const nyNow = () => {
-  const fmt = new Intl.DateTimeFormat("en-US", {
-    timeZone: "America/New_York",
-    hour12: false,
-    year: "numeric", month: "2-digit", day: "2-digit",
-    hour: "2-digit", minute: "2-digit", second: "2-digit"
-  });
-  const parts = Object.fromEntries(fmt.formatToParts(new Date()).map(p => [p.type, p.value]));
-  const hhmm = `${parts.hour}:${parts.minute}`;
-  const weekday = new Intl.DateTimeFormat("en-US", { 
-    timeZone: "America/New_York", 
-    weekday: "short" 
-  }).format(new Date());
-  return Object.freeze({ hhmm, weekday });
+    const fmt = new Intl.DateTimeFormat("en-US", {
+        timeZone: "America/New_York",
+        hour12: false,
+        year: "numeric", month: "2-digit", day: "2-digit",
+        hour: "2-digit", minute: "2-digit", second: "2-digit"
+    });
+    const parts = Object.fromEntries(fmt.formatToParts(new Date()).map(p => [p.type, p.value]));
+    const hhmm = `${parts.hour}:${parts.minute}`;
+    const weekday = new Intl.DateTimeFormat("en-US", {
+        timeZone: "America/New_York",
+        weekday: "short"
+    }).format(new Date());
+    return Object.freeze({ hhmm, weekday });
 };
 
 /**
@@ -47,8 +47,8 @@ export const nyNow = () => {
  * @returns {number} Minutes since midnight
  */
 export const hhmmToMin = (hhmm) => {
-  const [h, m] = hhmm.split(":").map(Number);
-  return h * 60 + m;
+    const [h, m] = hhmm.split(":").map(Number);
+    return h * 60 + m;
 };
 
 /**
@@ -66,10 +66,10 @@ export const isWeekend = (weekday) => weekday === "Sat" || weekday === "Sun";
  * @returns {boolean} True if time is in range
  */
 export const isTimeInRange = (currentTime, startTime, endTime) => {
-  const current = hhmmToMin(currentTime);
-  const start = hhmmToMin(startTime);
-  const end = hhmmToMin(endTime);
-  return current >= start && current < end;
+    const current = hhmmToMin(currentTime);
+    const start = hhmmToMin(startTime);
+    const end = hhmmToMin(endTime);
+    return current >= start && current < end;
 };
 
 /**
@@ -78,7 +78,7 @@ export const isTimeInRange = (currentTime, startTime, endTime) => {
  * @returns {boolean} True if currently in premarket hours
  */
 export const isPremarketNow = (premarketHours) => {
-  const { hhmm, weekday } = nyNow();
-  return !isWeekend(weekday) && 
-         isTimeInRange(hhmm, premarketHours.start, premarketHours.end);
+    const { hhmm, weekday } = nyNow();
+    return !isWeekend(weekday) &&
+        isTimeInRange(hhmm, premarketHours.start, premarketHours.end);
 };
