@@ -82,7 +82,7 @@ export const processStockData = async (threshold, state, telegramService, config
 
     try {
         logger.tradingview.request(1, config.retry.maxAttempts);
-        const rawStocks = await TvScanner.getStocks10(threshold);
+        const rawStocks = await TvScanner.getStocks10(config, threshold);
 
         // Validate API response
         const validation = validateTradingViewResponse({ data: rawStocks, totalCount: rawStocks.length });

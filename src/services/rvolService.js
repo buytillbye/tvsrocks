@@ -28,7 +28,7 @@ export const createRvolService = (config, telegramService) => {
     const scanOnce = async () => {
         const state = stateManager.get();
         try {
-            const rawStocks = await TvScanner.getRvolSurgeStocks(config.rvolThreshold);
+            const rawStocks = await TvScanner.getRvolSurgeStocks(config, config.rvolThreshold);
 
             if (!rawStocks || rawStocks.length === 0) return;
 

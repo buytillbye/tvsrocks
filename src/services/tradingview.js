@@ -9,7 +9,6 @@ const BROWSER_HEADERS_BASE = {
     accept: "text/plain, */*; q=0.01",
     "accept-language": "en-GB,en-US;q=0.9,en;q=0.8",
     "content-type": "application/x-www-form-urlencoded; charset=UTF-8",
-    cookie: `cookiePrivacyPreferenceBannerProduction=notApplicable; _ga=GA1.1.1233116757.1734004669; cookiesSettings={"analytics":true,"advertising":true}; device_t=R0VrSjow.AAizKRrP0uQcTMAq1xE_Rjot7iZf-AglGFRZUXnmoLQ; sessionid=ps3tjml9pwgo0eia4474mmd8cz5cmnnw; sessionid_sign=v3:UWVBmsuemtowX2lH7FeQlIE+mod/yTkzuvn/YW7nwYY=; cachec=undefined; etg=undefined; _sp_ses.cf1a=*; __gads=ID=d2876515cc6b00e5:T=1734433395:RT=1735294276:S=ALNI_MbXqBgw-APh_FTuE7tMjJ1dEvaIwQ; __gpi=UID=00000f6eb8318f38:T=1734433395:RT=1735294276:S=ALNI_MZhEybiU55qAQ2c4QrdylUZ6R9Fsw; __eoi=ID=5a818a91a5f23c95:T=1734433395:RT=1735294276:S=AA-AfjYNnLIQmiLzNa53s5Vtmxt_; _ga_YVVRYGL0E0=GS1.1.1735289226.39.1.1735299449.55.0.0; _sp_id.cf1a=8df46967-1481-48be-87d0-9dfa6267ef39.1734004669.27.1735299474.1735251939.91ba81de-eea2-4a01-85bf-4a3543965ef8.a370f917-9108-4b3f-a764-2cf59b92873d.4a6adab4-366d-4358-9a76-61d4485455b0.1735289226513.1140`,
     priority: "u=1, i",
     "sec-ch-ua":
         '"Google Chrome";v="131", "Chromium";v="131", "Not_A Brand";v="24"',
@@ -79,8 +78,9 @@ function mapRow(row) {
 }
 
 // Низькорівневий fetch з ретраями, referrer/referrerPolicy і логами
-async function fetchWithBrowserHeaders(bodyObj, { timeoutMs = 12000, retries = 2 } = {}) {
+async function fetchWithBrowserHeaders(bodyObj, { timeoutMs = 12000, retries = 2, cookie = null } = {}) {
     const headers = { ...BROWSER_HEADERS_BASE };
+    if (cookie) headers.cookie = cookie;
 
     const payload = JSON.stringify(bodyObj);
 
@@ -129,7 +129,7 @@ async function fetchWithBrowserHeaders(bodyObj, { timeoutMs = 12000, retries = 2
 }
 
 // Публічний API модуля: один стабільний метод
-async function getStocks10(preMarketThreshold = 10) {
+async function getStocks10(config, preMarketThreshold = 10) {
     const body = {
         columns: COLUMNS,
         filter: [
@@ -182,7 +182,11 @@ async function getStocks10(preMarketThreshold = 10) {
     };
 
     const t0 = Date.now();
-    const data = await fetchWithBrowserHeaders(body, { timeoutMs: 12000, retries: 2 });
+    const data = await fetchWithBrowserHeaders(body, {
+        timeoutMs: 12000,
+        retries: 2,
+        cookie: config?.api?.tvCookie
+    });
     const dt = Date.now() - t0;
 
     const rows = Array.isArray(data?.data) ? data.data : [];
@@ -191,7 +195,7 @@ async function getStocks10(preMarketThreshold = 10) {
 }
 
 // Новий метод для пошуку сплесків RVOL (за наданими користувачем параметрами)
-async function getRvolSurgeStocks(rvolThreshold = 2) {
+async function getRvolSurgeStocks(config, rvolThreshold = 2) {
     const body = {
         columns: [
             "ticker-view", "Value.Traded", "type", "typespecs", "currency",
@@ -265,7 +269,11 @@ async function getRvolSurgeStocks(rvolThreshold = 2) {
 
     const t0 = Date.now();
     // Використовуємо ту саму логіку fetch з оригінальними кукі
-    const data = await fetchWithBrowserHeaders(body, { timeoutMs: 15000, retries: 2 });
+    const data = await fetchWithBrowserHeaders(body, {
+        timeoutMs: 15000,
+        retries: 2,
+        cookie: config?.api?.tvCookie
+    });
     const dt = Date.now() - t0;
 
     const rows = Array.isArray(data?.data) ? data.data : [];

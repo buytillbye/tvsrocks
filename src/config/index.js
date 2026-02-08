@@ -81,7 +81,8 @@ export const parseConfig = () => Object.freeze({
     // API configurations
     api: Object.freeze({
         tradingViewUrl: "https://scanner.tradingview.com/america/scan",
-        userAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+        userAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+        tvCookie: process.env.TV_COOKIE || null
     }),
 
     // Screenshot configuration (extracted from screenshot.js)
