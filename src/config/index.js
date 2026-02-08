@@ -13,6 +13,7 @@ import "dotenv/config";
  * @property {boolean} sendOnStartup - Whether to send all stocks on startup
  * @property {number} rvolThreshold - RVOL surge threshold
  * @property {number} rvolIntervalMs - RVOL scan interval
+ * @property {number} rvolAlertStep - Increment step for repeated alerts
  * @property {Object} premarketHours - Premarket trading hours
  * @property {string} premarketHours.start - Start time (HH:MM)
  * @property {string} premarketHours.end - End time (HH:MM)
@@ -54,6 +55,7 @@ export const parseConfig = () => Object.freeze({
     sendOnStartup: String(process.env.SEND_ON_STARTUP || "false") === "true",
     rvolThreshold: Number(process.env.RVOL_THRESHOLD || 2),
     rvolIntervalMs: Number(process.env.RVOL_INTERVAL_MS || 10000),
+    rvolAlertStep: Number(process.env.RVOL_ALERT_STEP || 1.0),
 
     // Trading hours configuration
     premarketHours: Object.freeze({
