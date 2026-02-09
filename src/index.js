@@ -60,7 +60,7 @@ const createApp = async () => {
                 logger.info('App', "Application started successfully");
             },
             shutdown: async () => {
-                orchestrator.stop();
+                await orchestrator.stop();
                 if (growthScanner.shutdown) await growthScanner.shutdown();
             },
             sendErrorMessage: telegramService.sendMessage,
