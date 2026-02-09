@@ -19,6 +19,7 @@ export const createRvolService = (config, telegramService, scanner = TvScanner) 
 
     const stateManager = createStateManager({
         isRunning: false,
+        isStarting: false,
         lastReportedRvol: new Map(), // ticker -> last reported value
         scanTimer: null
     });
@@ -52,7 +53,7 @@ export const createRvolService = (config, telegramService, scanner = TvScanner) 
             if (alertsToSend.length === 0) return;
 
             // Update state with new RVOL values
-            const updatedMap = new Map(state.lastReportedRvol);
+            const updatedMap = new Map(stateManager.get().lastReportedRvol);
             alertsToSend.forEach(({ stock }) => updatedMap.set(stock.symbol, stock.rvol_intraday_5m));
             stateManager.update(() => ({ lastReportedRvol: updatedMap }));
 
@@ -84,17 +85,29 @@ export const createRvolService = (config, telegramService, scanner = TvScanner) 
 
     const start = async () => {
         const state = stateManager.get();
-        if (state.isRunning) return;
+        if (state.isRunning || state.isStarting) return;
 
-        logger.info('RvolService', "🚀 RVOL Listener started");
-        stateManager.update(() => ({
-            isRunning: true,
-            lastReportedRvol: new Map() // Reset on start for a fresh session
-        }));
+        try {
+            stateManager.update(() => ({ isStarting: true }));
 
-        await scanOnce();
-        const scanTimer = setInterval(scanOnce, config.rvolIntervalMs);
-        stateManager.update(() => ({ scanTimer }));
+            logger.info('RvolService', "🚀 RVOL Listener started");
+
+            await scanOnce();
+
+            const scanTimer = setInterval(scanOnce, config.rvolIntervalMs);
+            stateManager.update(() => ({
+                isRunning: true,
+                isStarting: false,
+                lastReportedRvol: new Map(), // Reset on start for a fresh session
+                scanTimer
+            }));
+        } catch (error) {
+            stateManager.update(() => ({ isStarting: false }));
+            errorHandler.handle(error, {
+                component: 'RvolService',
+                operation: 'start'
+            });
+        }
     };
 
     const stop = () => {

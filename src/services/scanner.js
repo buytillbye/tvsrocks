@@ -18,6 +18,7 @@ export const createScanner = (config, telegramService) => {
 
     const stateManager = createStateManager({
         isRunning: false,
+        isStarting: false,
         isFirstScan: true,
         lastReportedChanges: new Map(),
         sendOnStartup: config.sendOnStartup,
@@ -49,22 +50,26 @@ export const createScanner = (config, telegramService) => {
 
     const start = async () => {
         const state = stateManager.get();
-        if (state.isRunning) return;
+        if (state.isRunning || state.isStarting) return;
 
         try {
+            stateManager.update(() => ({ isStarting: true }));
+
             await telegramService.sendMessage(createStatusMessage(true));
             logger.scanner.start();
 
+            await scanOnce();
+
+            const scanTimer = setInterval(scanOnce, config.scanIntervalMs);
             stateManager.update(() => ({
                 isRunning: true,
+                isStarting: false,
                 isFirstScan: true,
-                lastReportedChanges: new Map()
+                lastReportedChanges: new Map(),
+                scanTimer
             }));
-
-            await scanOnce();
-            const scanTimer = setInterval(scanOnce, config.scanIntervalMs);
-            stateManager.update(() => ({ scanTimer }));
         } catch (error) {
+            stateManager.update(() => ({ isStarting: false }));
             errorHandler.handle(error, {
                 component: 'ScannerService',
                 operation: 'start'

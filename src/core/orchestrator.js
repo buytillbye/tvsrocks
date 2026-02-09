@@ -17,14 +17,20 @@ const DEFAULT_TIME_UTILS = { isPremarketTime, isMarketNow };
 export const createOrchestrator = (config, services, timeUtils = DEFAULT_TIME_UTILS) => {
     const logger = createLogger();
     const stateManager = createStateManager({
-        orchestratorTimer: null
+        orchestratorTimer: null,
+        isProcessing: false
     });
 
     /**
      * Main check logic that runs every interval
      */
     const checkAndToggleServices = async () => {
+        const { isProcessing } = stateManager.get();
+        if (isProcessing) return;
+
         try {
+            stateManager.update(() => ({ isProcessing: true }));
+
             const inPremarket = timeUtils.isPremarketTime(config.premarketHours);
             const inMarket = timeUtils.isMarketNow();
 
@@ -32,31 +38,33 @@ export const createOrchestrator = (config, services, timeUtils = DEFAULT_TIME_UT
 
             // 1. Manage Premarket Growth Scanner
             if (inPremarket) {
-                if (!growthScanner.getState().isRunning) {
+                if (!growthScanner.getState().isRunning && !growthScanner.getState().isStarting) {
                     logger.info('Orchestrator', '🌅 Premarket started. Starting Growth Scanner...');
                     await growthScanner.start();
                 }
             } else {
                 if (growthScanner.getState().isRunning) {
                     logger.info('Orchestrator', '🌅 Premarket ended. Stopping Growth Scanner...');
-                    growthScanner.stop();
+                    await growthScanner.stop();
                 }
             }
 
             // 2. Manage Regular Market RVOL Scanner
             if (inMarket) {
-                if (!rvolScanner.getState().isRunning) {
+                if (!rvolScanner.getState().isRunning && !rvolScanner.getState().isStarting) {
                     logger.info('Orchestrator', '🔔 Market opened. Starting RVOL Scanner...');
                     await rvolScanner.start();
                 }
             } else {
                 if (rvolScanner.getState().isRunning) {
                     logger.info('Orchestrator', '🔔 Market closed. Stopping RVOL Scanner...');
-                    rvolScanner.stop();
+                    await rvolScanner.stop();
                 }
             }
         } catch (error) {
             logger.error('Orchestrator', `Error in check cycle: ${error.message}`);
+        } finally {
+            stateManager.update(() => ({ isProcessing: false }));
         }
     };
 
