@@ -3,7 +3,7 @@
 # See https://fly.io/docs/reference/configuration/ for information about how to use this file.
 #
 
-app = 'stockscreener-ahjvjg'
+app = 'tvsrocks'
 primary_region = 'fra'
 
 [experimental]
@@ -14,16 +14,9 @@ primary_region = 'fra'
 
 [build]
 
+
 [processes]
   app = 'npm start'
-
-[http_service]
-  internal_port = 8080
-  force_https = true
-  auto_stop_machines = 'off'
-  auto_start_machines = true
-  min_machines_running = 1
-  processes = ['app']
 
 [[vm]]
   size = 'shared-cpu-1x'

@@ -108,7 +108,9 @@ export const processStockData = async (threshold, state, telegramService, config
                 continue;
             }
 
-            const prevChange = state.lastReportedChanges.get(stock.symbol);
+            const stateEntry = state.lastReportedChanges.get(stock.symbol);
+            const prevChange = stateEntry?.change;
+            const prevCount = stateEntry?.count || 0;
 
             // Alert conditions:
             // 1. Never seen before
@@ -116,7 +118,7 @@ export const processStockData = async (threshold, state, telegramService, config
             const shouldAlert = prevChange === undefined || (stock.premarket_change >= prevChange + config.premarketAlertStep);
 
             if (shouldAlert) {
-                alertsToSend.push({ stock, prevChange });
+                alertsToSend.push({ stock, prevChange, count: prevCount + 1 });
             }
         }
 
@@ -133,7 +135,7 @@ export const processStockData = async (threshold, state, telegramService, config
         if (!shouldSendNotifications(state.isFirstScan, state.sendOnStartup, alertsToSend.length)) {
             logger.scanner.bootstrapSuppressed(alertsToSend.length);
             // Record initial values to suppress future alerts until they grow
-            alertsToSend.forEach(({ stock }) => updatedChanges.set(stock.symbol, stock.premarket_change));
+            alertsToSend.forEach(({ stock, count }) => updatedChanges.set(stock.symbol, { change: stock.premarket_change, count: count }));
             return {
                 ...state,
                 lastReportedChanges: updatedChanges,
@@ -142,15 +144,15 @@ export const processStockData = async (threshold, state, telegramService, config
         }
 
         // Send notifications for new stocks with error handling
-        const sendPromises = alertsToSend.map(async ({ stock, prevChange }) => {
+        const sendPromises = alertsToSend.map(async ({ stock, prevChange, count }) => {
             try {
                 const isUpdate = prevChange !== undefined;
-                const message = createStockMessage(stock, isUpdate, prevChange);
+                const message = createStockMessage(stock, isUpdate, prevChange, count);
                 logger.scanner.newStock(stock.symbol, stock.premarket_change.toFixed(2));
 
                 const result = await telegramService.sendMessage(message);
                 if (result.success) {
-                    updatedChanges.set(stock.symbol, stock.premarket_change);
+                    updatedChanges.set(stock.symbol, { change: stock.premarket_change, count });
                 } else {
                     logger.error('StockService', `Failed to send notification for ${stock.symbol}`, {
                         error: result.error?.message

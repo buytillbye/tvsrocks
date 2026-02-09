@@ -37,9 +37,10 @@ export const formatNum = (n) => {
  * @param {StockData} stock - Stock data object
  * @param {boolean} isUpdate - Whether this is an update to an existing alert
  * @param {number|null} prevChange - Previous reported change percentage
+ * @param {number} count - Current alert count for this stock
  * @returns {string} Formatted message for Telegram
  */
-export const createStockMessage = (stock, isUpdate = false, prevChange = null) => {
+export const createStockMessage = (stock, isUpdate = false, prevChange = null, count = 1) => {
     const price = (stock.premarket_close === null || stock.premarket_close === undefined || Number.isNaN(stock.premarket_close))
         ? "-"
         : `$${Number(stock.premarket_close).toFixed(2)}`;
@@ -53,9 +54,10 @@ export const createStockMessage = (stock, isUpdate = false, prevChange = null) =
 
     const emoji = isUpdate ? "📈" : "🚀";
     const changeSuffix = isUpdate && prevChange !== null ? ` (was ${prevChange.toFixed(2)}%)` : "";
+    const stepPrefix = count > 1 ? `[STEP #${count}] ` : "";
 
     return [
-        `${emoji} ${stock.symbol}`,
+        `${stepPrefix}${emoji} ${stock.symbol}`,
         `• Price: ${price}`,
         `• Change: ${change}${changeSuffix}`,
         `• Float: ${floatStr}`,
