@@ -74,15 +74,16 @@ export const shouldSendNotifications = (isFirstScan, sendOnStartup, newStocksCou
  * @param {StockState} state - Current scanner state
  * @param {Object} telegramService - Telegram service instance
  * @param {Object} config - Configuration object
+ * @param {Object} [scanner=TvScanner] - Optional scanner implementation for testing
  * @returns {Promise<StockState>} Updated state
  */
-export const processStockData = async (threshold, state, telegramService, config) => {
+export const processStockData = async (threshold, state, telegramService, config, scanner = TvScanner) => {
     const logger = createLogger();
     const errorHandler = createErrorHandler(logger);
 
     try {
         logger.tradingview.request(1, config.retry.maxAttempts);
-        const rawStocks = await TvScanner.getStocks10(config, threshold);
+        const rawStocks = await scanner.getStocks10(config, threshold);
 
         // Validate API response
         const validation = validateTradingViewResponse({ data: rawStocks, totalCount: rawStocks.length });
