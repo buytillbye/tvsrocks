@@ -9,6 +9,9 @@ primary_region = 'fra'
 [experimental]
   auto_rollback = true
 
+[deployment]
+  strategy = "recreate"
+
 [build]
 
 [processes]
