@@ -153,10 +153,41 @@ export const createTelegramService = (config) => {
         return bot.stop(reason);
     };
 
+    /**
+     * Sends photo with caption (Supports either file path or Buffer)
+     * @param {string|Buffer} photo - Path to photo file or raw Buffer
+     * @param {string} caption - Optional caption
+     * @returns {Promise<Object>} Send result
+     */
+    const sendPhoto = async (photo, caption = "") => {
+        try {
+            const opts = createSendOptions(true);
+            if (caption) {
+                opts.caption = caption;
+                opts.parse_mode = "Markdown";
+            }
+
+            // Telegraf's source property handles both strings (paths) and Buffers
+            const msg = await bot.telegram.sendPhoto(config.chatId, { source: photo }, opts);
+
+            logger.telegram.sent(msg.message_id, msg.chat.id, config.threadId);
+            return { success: true, message: msg };
+        } catch (error) {
+            const code = error?.response?.error_code;
+            const desc = error?.response?.description || error.message;
+            logger.telegram.error(code, desc);
+            return { success: false, error };
+        }
+    };
+
     return Object.freeze({
         sendMessage: errorHandler.wrapAsync(sendMessage, {
             component: 'TelegramService',
             operation: 'sendMessage'
+        }),
+        sendPhoto: errorHandler.wrapAsync(sendPhoto, {
+            component: 'TelegramService',
+            operation: 'sendPhoto'
         }),
         onCommand: (command, handler) => {
             bot.command(command, async (ctx) => {

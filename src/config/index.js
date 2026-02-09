@@ -89,7 +89,7 @@ export const parseConfig = () => Object.freeze({
 
     // Screenshot configuration (extracted from screenshot.js)
     screenshot: Object.freeze({
-        viewport: Object.freeze({ width: 2500, height: 1200 }),
+        viewport: Object.freeze({ width: 800, height: 600 }),
         blockedResources: Object.freeze(['image', 'font', 'media']),
         browserArgs: Object.freeze([
             '--no-sandbox',
@@ -101,10 +101,7 @@ export const parseConfig = () => Object.freeze({
             '--no-first-run',
             '--memory-pressure-off'
         ]),
-        intervals: Object.freeze({
-            top: "240", // 4H
-            bottom: "1" // 1M
-        })
+        intervals: ["D", "240", "15", "1"]
     })
 });
 

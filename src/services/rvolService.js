@@ -2,6 +2,7 @@
  * @fileoverview RVOL surge monitoring service
  */
 import { TvScanner } from "./tradingview.js";
+import { captureTicker, captureStitchedTicker } from "./screenshot.js";
 import { createStateManager, createStatusMessage } from "../core/utils/index.js";
 import { createLogger } from "../core/logger.js";
 import { createErrorHandler } from "../core/errorHandler.js";
@@ -22,6 +23,8 @@ export const createRvolService = (config, telegramService, scanner = TvScanner) 
         isStarting: false,
         lastReportedRvol: new Map(), // ticker -> last reported value
         lastTotalCount: 0,
+        lastTickers: [],             // All tickers from the latest scan
+        alertCount: 0,               // Total alerts sent in this session
         scanTimer: null
     });
 
@@ -33,8 +36,13 @@ export const createRvolService = (config, telegramService, scanner = TvScanner) 
         try {
             const { data: rawStocks, totalCount } = await scanner.getRvolSurgeStocks(config, config.rvolThreshold);
 
+            const currentTickers = rawStocks?.map(s => s.s) || [];
+
             if (!rawStocks || rawStocks.length === 0) {
-                stateManager.update(() => ({ lastTotalCount: totalCount }));
+                stateManager.update(() => ({
+                    lastTotalCount: totalCount,
+                    lastTickers: currentTickers
+                }));
                 return;
             }
 
@@ -54,15 +62,18 @@ export const createRvolService = (config, telegramService, scanner = TvScanner) 
                 }
             }
 
-            if (alertsToSend.length === 0) return;
-
-            // Update state with new RVOL values
+            // Update state with new RVOL values and stats
             const updatedMap = new Map(stateManager.get().lastReportedRvol);
             alertsToSend.forEach(({ stock }) => updatedMap.set(stock.symbol, stock.rvol_intraday_5m));
-            stateManager.update(() => ({
+
+            stateManager.update(s => ({
                 lastReportedRvol: updatedMap,
-                lastTotalCount: totalCount
+                lastTotalCount: totalCount,
+                lastTickers: currentTickers,
+                alertCount: s.alertCount + alertsToSend.length
             }));
+
+            if (alertsToSend.length === 0) return;
 
             // Send alerts
             for (const { stock, prevValue } of alertsToSend) {
@@ -80,7 +91,16 @@ export const createRvolService = (config, telegramService, scanner = TvScanner) 
                     `Premarket: *${stock.premarket_change.toFixed(2)}%*`;
 
                 logger.info('RvolService', `${isUpdate ? 'Growth' : 'Surge'} detected: ${stock.symbol} (${stock.rvol_intraday_5m.toFixed(2)})`);
-                await telegramService.sendMessage(message);
+
+                // 🎨 Capture 2x2 grid (1D, 4h, 15m, 1m) for compact alerts
+                const intervals = config.screenshot.intervals || ["D", "240", "15", "1"];
+                const chartPath = await captureStitchedTicker(stock.symbol, config, intervals);
+
+                if (chartPath) {
+                    await telegramService.sendPhoto(chartPath, message);
+                } else {
+                    await telegramService.sendMessage(message);
+                }
             }
         } catch (error) {
             errorHandler.handle(error, {
@@ -106,6 +126,8 @@ export const createRvolService = (config, telegramService, scanner = TvScanner) 
                 isRunning: true,
                 isStarting: false,
                 lastReportedRvol: new Map(), // Reset on start for a fresh session
+                lastTickers: [],
+                alertCount: 0,
                 scanTimer
             }));
         } catch (error) {

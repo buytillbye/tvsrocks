@@ -23,6 +23,8 @@ export const createScanner = (config, telegramService) => {
         lastReportedChanges: new Map(),
         sendOnStartup: config.sendOnStartup,
         lastTotalCount: 0,
+        lastTickers: [],
+        alertCount: 0,
         scanTimer: null
     });
 
@@ -67,6 +69,8 @@ export const createScanner = (config, telegramService) => {
                 isStarting: false,
                 isFirstScan: true,
                 lastReportedChanges: new Map(),
+                lastTickers: [],
+                alertCount: 0,
                 scanTimer
             }));
         } catch (error) {

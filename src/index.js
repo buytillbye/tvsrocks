@@ -7,6 +7,7 @@ import { maskToken, createStartupMessage } from "./core/utils/index.js";
 import { createTelegramService } from "./services/telegram.js";
 import { createScanner } from "./services/scanner.js";
 import { createRvolService } from "./services/rvolService.js";
+import { shutdownScreenshotService } from "./services/screenshot.js";
 import { createOrchestrator } from "./core/orchestrator.js";
 import { createLogger } from "./core/logger.js";
 import { createGlobalErrorHandler, ConfigurationError } from "./core/errorHandler.js";
@@ -52,8 +53,22 @@ const createApp = async () => {
                     const rState = rvolScanner.getState();
 
                     const report = ["📊 *ScreenStonks Stats*"];
-                    report.push(`🌅 PRE: ${gState.lastTotalCount || 0} stocks (${gState.isRunning ? "active" : "off"})`);
-                    report.push(`🔔 MKT: ${rState.lastTotalCount || 0} stocks (${rState.isRunning ? "active" : "off"})`);
+
+                    report.push(`\n🌅 *PREMARKET (P):*`);
+                    report.push(`- Status: ${gState.isRunning ? "✅ Active" : "🛑 Off"}`);
+                    report.push(`- Total Scanned (API): *${gState.lastTotalCount || 0}*`);
+                    report.push(`- Alerts Sent: *${gState.alertCount || 0}*`);
+                    if (gState.lastTickers?.length > 0) {
+                        report.push(`- Last Wave: \`${gState.lastTickers.join(", ")}\``);
+                    }
+
+                    report.push(`\n🔔 *MARKET/VOLUME (V):*`);
+                    report.push(`- Status: ${rState.isRunning ? "✅ Active" : "🛑 Off"}`);
+                    report.push(`- Total Scanned (API): *${rState.lastTotalCount || 0}*`);
+                    report.push(`- Alerts Sent: *${rState.alertCount || 0}*`);
+                    if (rState.lastTickers?.length > 0) {
+                        report.push(`- Last Wave: \`${rState.lastTickers.join(", ")}\``);
+                    }
 
                     await ctx.replyWithMarkdown(report.join('\n'));
                 });
@@ -76,6 +91,7 @@ const createApp = async () => {
             shutdown: async () => {
                 await orchestrator.stop();
                 if (growthScanner.shutdown) await growthScanner.shutdown();
+                await shutdownScreenshotService();
             },
             sendErrorMessage: telegramService.sendMessage,
             handleGlobalError: globalErrorHandler

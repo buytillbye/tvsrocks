@@ -1,257 +1,297 @@
-/**
- * @fileoverview Screenshot service using Playwright to capture TradingView charts
- */
 import { chromium } from "playwright";
 import fs from "fs/promises";
-import sharp from 'sharp';
+import sharp from "sharp";
 import { createLogger } from "../core/logger.js";
 import { createErrorHandler } from "../core/errorHandler.js";
 
 /**
- * Screenshot service class for capturing and processing stock charts
+ * Singleton-like Screenshot Service that keeps browser open
  */
-class ScreenshotService {
-    /**
-     * @param {Object} config - Application configuration
-     * @param {Object} telegramService - Telegram service for sending results
-     */
-    constructor(config, telegramService) {
+class PersistentScreenshotService {
+    constructor(config) {
         this.config = config;
-        this.telegramService = telegramService;
-        this.browser = null;
-        this.page = null;
         this.logger = createLogger();
         this.errorHandler = createErrorHandler(this.logger);
-        this.tickerQueue = [];
-        this.isInitialSetupComplete = false;
+        this.browser = null;
+        this.context = null;
+        this.isInitializing = false;
+
+        // 🔄 Concurrency & Cache for Production
+        this.pendingCaptures = new Map(); // Map<symbol:interval, Promise>
+        this.cache = new Map();           // Map<symbol:interval, { path: string, timestamp: number }>
+        this.CACHE_TTL = 10000;          // 10 seconds cache to avoid rapid duplicate captures
     }
 
     /**
-     * Initializes the browser with configured arguments and dark mode
+     * Launch browser and context once
      */
-    async initBrowser() {
-        this.logger.info('ScreenshotService', "🚀 Initializing browser...");
-        const { browserArgs, viewport } = this.config.screenshot;
-
-        this.browser = await chromium.launch({
-            headless: true,
-            args: [...browserArgs]
-        });
-
-        this.page = await this.browser.newPage();
-
-        // Set dark mode cookie for TradingView
-        await this.page.context().addCookies([{
-            name: 'theme',
-            value: 'dark',
-            domain: '.tradingview.com',
-            path: '/',
-            expires: Math.floor(Date.now() / 1000) + 86400
-        }]);
-
-        await this.page.setViewportSize(viewport);
-
-        // Block unnecessary resources for speed
-        await this.page.route('**/*', (route) => {
-            const resourceType = route.request().resourceType();
-            if (this.config.screenshot.blockedResources.includes(resourceType)) {
-                route.abort();
-            } else {
-                route.continue();
+    async ensureInitialized() {
+        if (this.context) return;
+        if (this.isInitializing) {
+            while (this.isInitializing) {
+                await new Promise(resolve => setTimeout(resolve, 100));
             }
-        });
+            return;
+        }
 
-        this.logger.info('ScreenshotService', "✅ Browser initialized with dark theme");
-    }
-
-    async navigateToChart() {
-        this.logger.info('ScreenshotService', "🌐 Navigating to TradingView chart...");
-        await this.page.goto('https://www.tradingview.com/chart/', {
-            waitUntil: 'domcontentloaded',
-            timeout: this.config.timeouts.fetchTimeoutMs / 2
-        });
-        await this.page.waitForSelector('#header-toolbar-symbol-search', { timeout: 8000 });
-        this.logger.info('ScreenshotService', "✅ TradingView loaded");
-    }
-
-    async searchSymbol(symbol) {
-        this.logger.info('ScreenshotService', `🔍 Searching for ${symbol}...`);
-        await this.page.click('#header-toolbar-symbol-search');
-        await this.page.waitForSelector('input[data-role="search"]', { timeout: 2000 });
-        await this.page.fill('input[data-role="search"]', '');
-        await this.page.fill('input[data-role="search"]', symbol);
-        await this.page.press('input[data-role="search"]', 'Enter');
-        await this.page.waitForSelector('.chart-container', { timeout: 5000 });
-        this.logger.info('ScreenshotService', `✅ ${symbol} loaded`);
-    }
-
-    async selectTimeInterval(interval) {
-        this.logger.info('ScreenshotService', `⏱️ Setting interval: ${interval}`);
+        this.isInitializing = true;
         try {
-            await this.page.click('#header-toolbar-intervals button');
-            await this.page.waitForTimeout(200);
-            await this.page.click(`div[data-value="${interval}"][data-role="menuitem"]`);
-            await this.page.waitForTimeout(300);
-        } catch (e) {
-            this.logger.warn('ScreenshotService', `Interval selection failed for ${interval}, continuing...`);
+            this.logger.info('ScreenshotService', "🚀 Initializing persistent browser...");
+            const { browserArgs, viewport } = this.config.screenshot;
+
+            this.browser = await chromium.launch({
+                headless: true,
+                args: [
+                    ...browserArgs,
+                    '--disable-extensions',
+                    '--disable-component-update',
+                    '--no-pings',
+                    '--mute-audio'
+                ]
+            });
+
+            this.context = await this.browser.newContext({
+                viewport: viewport,
+                deviceScaleFactor: 1
+            });
+
+            this.logger.info('ScreenshotService', "✅ Persistent browser ready");
+        } catch (error) {
+            this.logger.error('ScreenshotService', `❌ Initialization failed: ${error.message}`);
+            throw error;
+        } finally {
+            this.isInitializing = false;
         }
     }
 
-    async switchToExtendedHours() {
-        this.logger.info('ScreenshotService', "⏰ Enabling Extended Hours...");
+    async captureOne(page, symbol, interval) {
+        const encodedSymbol = encodeURIComponent(symbol);
+        const url = `https://s.tradingview.com/widgetembed/?symbol=${encodedSymbol}&interval=${interval}&theme=dark&style=1&timezone=America%2FNew_York`;
+
+        await page.goto(url, { waitUntil: 'load', timeout: 30000 });
+
+        const chartSelector = '.chart-markup-table';
+        const fallbackSelector = '.chart-gui-wrapper';
+
         try {
-            await this.page.click('button[data-name="session-menu"]');
-            await this.page.waitForTimeout(200);
-            await this.page.click('div[data-role="menuitem"]:has-text("Extended trading hours")');
-            await this.page.waitForTimeout(300);
+            await page.waitForSelector(chartSelector, { state: 'visible', timeout: 15000 });
         } catch (e) {
-            this.logger.warn('ScreenshotService', "Extended Hours switch failed, continuing...");
+            await page.waitForSelector(fallbackSelector, { state: 'visible', timeout: 5000 });
         }
-    }
 
-    async zoomOutChart() {
+        // 🕒 Enable Extended Session (Pre/Post Market)
+        let overridesSuccess = false;
         try {
-            const chartElement = await this.page.$('.chart-container.single-visible');
-            await chartElement.hover();
-            for (let i = 0; i < 3; i++) {
-                await this.page.mouse.wheel(0, 500);
-            }
-        } catch (e) {
-            this.logger.warn('ScreenshotService', "Zoom out failed, continuing...");
-        }
-    }
-
-    async closeZoomTooltip() {
-        try {
-            await this.page.waitForSelector('.closeButton-zLVm6B4t', { timeout: 500 });
-            await this.page.click('.closeButton-zLVm6B4t');
-            await this.page.waitForTimeout(100);
-        } catch (e) {
-            // Ignored
-        }
-    }
-
-    async takeScreenshot(symbol, suffix = "") {
-        const filename = `${symbol.replace(':', '_')}_${suffix || Date.now()}.png`;
-        await this.page.waitForSelector('.chart-container.single-visible', { timeout: 3000 });
-        await this.closeZoomTooltip();
-        const chartElement = await this.page.$('.chart-container.single-visible');
-        await chartElement.screenshot({ path: filename, type: 'png' });
-        return filename;
-    }
-
-    async stitchImages(files) {
-        const stitchedPath = `stitched_${Date.now()}.png`;
-        try {
-            const [topMeta, bottomMeta] = await Promise.all([
-                sharp(files[0]).metadata(),
-                sharp(files[1]).metadata()
-            ]);
-
-            const width = Math.max(topMeta.width || 0, bottomMeta.width || 0);
-            const height = (topMeta.height || 0) + (bottomMeta.height || 0);
-
-            await sharp({
-                create: {
-                    width,
-                    height,
-                    channels: 4,
-                    background: { r: 255, g: 255, b: 255, alpha: 1 }
+            overridesSuccess = await page.evaluate(() => {
+                const widget = window.tvWidget || (window.chartWidgetCollection && window.chartWidgetCollection.activeChartWidget && window.chartWidgetCollection.activeChartWidget.value());
+                if (widget && typeof widget.applyOverrides === 'function') {
+                    widget.applyOverrides({ "mainSeriesProperties.sessionId": "extended" });
+                    return true;
                 }
-            })
-                .composite([
-                    { input: files[0], left: Math.floor((width - (topMeta.width || 0)) / 2), top: 0 },
-                    { input: files[1], left: Math.floor((width - (bottomMeta.width || 0)) / 2), top: topMeta.height || 0 }
-                ])
-                .png()
-                .toFile(stitchedPath);
+                return false;
+            });
+        } catch (e) { /* ignore */ }
 
-            return stitchedPath;
-        } catch (error) {
-            this.logger.error('ScreenshotService', `Failed to stitch images: ${error.message}`);
-            throw error;
+        // Settle time for data to render
+        await page.waitForTimeout(overridesSuccess ? 1500 : 800);
+
+        const element = await page.$(chartSelector) || await page.$(fallbackSelector);
+        if (element) {
+            return await element.screenshot();
+        } else {
+            return await page.screenshot();
         }
     }
 
-    async sendToTelegram(imagePath, symbol) {
-        try {
-            await this.telegramService.sendPhoto(imagePath, `📊 ${symbol} Chart - ${new Date().toLocaleString()}`);
-        } catch (error) {
-            this.logger.error('ScreenshotService', `Failed to send photo: ${error.message}`);
-            throw error;
+    /**
+     * Captures a single chart screenshot with deduplication and caching (Buffer mode)
+     */
+    async capture(symbol, interval = "15") {
+        const cacheKey = `${symbol}:${interval}`;
+
+        // 1. Check Cache
+        const cached = this.cache.get(cacheKey);
+        if (cached && (Date.now() - cached.timestamp < this.CACHE_TTL)) {
+            return cached.buffer;
         }
+
+        // 2. Check Pending (Deduplication)
+        if (this.pendingCaptures.has(cacheKey)) {
+            return this.pendingCaptures.get(cacheKey);
+        }
+
+        const capturePromise = (async () => {
+            const t0 = Date.now();
+            await this.ensureInitialized();
+            const page = await this.context.newPage();
+
+            try {
+                await page.route('**/*', (route) => {
+                    if (['image', 'media', 'font'].includes(route.request().resourceType())) {
+                        route.abort();
+                    } else {
+                        route.continue();
+                    }
+                });
+
+                this.logger.info('ScreenshotService', `📸 Capturing ${symbol} (${interval}) [Buffer mode]`);
+
+                const buffer = await this.captureOne(page, symbol, interval);
+
+                this.cache.set(cacheKey, { buffer, timestamp: Date.now() });
+                this.logger.info('ScreenshotService', `✅ Captured ${symbol} in ${Date.now() - t0}ms`);
+
+                return buffer;
+            } catch (error) {
+                this.logger.error('ScreenshotService', `❌ Capture failed for ${symbol}: ${error.message}`);
+                return null;
+            } finally {
+                await page.close();
+                this.pendingCaptures.delete(cacheKey);
+            }
+        })();
+
+        this.pendingCaptures.set(cacheKey, capturePromise);
+        return capturePromise;
     }
 
-    async configureChartLayout() {
-        try {
-            await this.page.click('#header-toolbar-properties');
-            await this.page.waitForSelector('button[data-name="legend"]', { timeout: 1000 });
-            await this.page.click('button[data-name="legend"]');
-            await this.page.waitForSelector('div[data-section-name="ohlcTitle"] input[type="checkbox"]', { timeout: 1000 });
-            await this.page.locator('div[data-section-name="ohlcTitle"] input[type="checkbox"]').click({ force: true });
-            await this.page.locator('div[data-section-name="barChange"] input[type="checkbox"]').click({ force: true });
-            await this.page.click('button[data-name="trading"]');
-            await this.page.waitForSelector('div[data-section-name="tradingSellBuyPanel"] input[type="checkbox"]', { timeout: 1000 });
-            await this.page.locator('div[data-section-name="tradingSellBuyPanel"] input[type="checkbox"]').click({ force: true });
-            await this.page.click('button[data-name="submit-button"]');
-            await this.page.waitForTimeout(300);
-        } catch (error) {
-            this.logger.warn('ScreenshotService', `Chart layout configuration partially failed: ${error.message}`);
+    /**
+     * Captures 2x2 grid in parallel with deduplication (Buffer mode)
+     */
+    async captureStitched(symbol, intervals = ["D", "240", "15", "1"]) {
+        const cacheKey = `${symbol}:STITCHED`;
+
+        // 1. Check Cache
+        const cached = this.cache.get(cacheKey);
+        if (cached && (Date.now() - cached.timestamp < this.CACHE_TTL)) {
+            return cached.buffer;
         }
+
+        // 2. Check Pending
+        if (this.pendingCaptures.has(cacheKey)) {
+            return this.pendingCaptures.get(cacheKey);
+        }
+
+        const capturePromise = (async () => {
+            const t0 = Date.now();
+            await this.ensureInitialized();
+
+            try {
+                this.logger.info('ScreenshotService', `🎨 Generating asymmetric 2x2 grid for ${symbol}...`);
+
+                const intervalsMap = [
+                    { interval: "D", width: 800, height: 600, left: 0, top: 0 },
+                    { interval: "240", width: 800, height: 600, left: 0, top: 600 },
+                    { interval: "15", width: 1200, height: 600, left: 800, top: 0 },
+                    { interval: "1", width: 1200, height: 600, left: 800, top: 600 }
+                ];
+
+                const captureResults = await Promise.all(intervalsMap.map(async (item) => {
+                    const page = await this.context.newPage();
+                    try {
+                        // Set specific viewport for this interval
+                        await page.setViewportSize({ width: item.width, height: item.height });
+
+                        await page.route('**/*', (route) => {
+                            if (['image', 'media', 'font'].includes(route.request().resourceType())) {
+                                route.abort();
+                            } else {
+                                route.continue();
+                            }
+                        });
+                        const buffer = await this.captureOne(page, symbol, item.interval);
+                        return { buffer, ...item };
+                    } finally {
+                        await page.close();
+                    }
+                }));
+
+                const finalWidth = 2000;
+                const finalHeight = 1200;
+
+                const stitchedBuffer = await sharp({
+                    create: {
+                        width: finalWidth,
+                        height: finalHeight,
+                        channels: 4,
+                        background: { r: 0, g: 0, b: 0, alpha: 1 }
+                    }
+                })
+                    .composite(captureResults.map(res => ({
+                        input: res.buffer,
+                        left: res.left,
+                        top: res.top
+                    })))
+                    .png()
+                    .toBuffer();
+
+                this.cache.set(cacheKey, { buffer: stitchedBuffer, timestamp: Date.now() });
+                this.logger.info('ScreenshotService', `⚡ Asymmetric stitched ${symbol} in ${Date.now() - t0}ms`);
+
+                return stitchedBuffer;
+            } catch (error) {
+                this.logger.error('ScreenshotService', `❌ Grid capture failed for ${symbol}: ${error.message}`);
+                return null;
+            } finally {
+                this.pendingCaptures.delete(cacheKey);
+            }
+        })();
+
+        this.pendingCaptures.set(cacheKey, capturePromise);
+        return capturePromise;
     }
 
-    async cleanup() {
+    async close() {
         if (this.browser) {
             await this.browser.close();
+            this.browser = null;
+            this.context = null;
             this.logger.info('ScreenshotService', "🧹 Browser closed");
         }
     }
+}
 
-    async processTickerQueue(tickers) {
-        if (!tickers.length) return;
-        try {
-            await this.initBrowser();
-            await this.navigateToChart();
+// Global instance to persist across calls
+let serviceInstance = null;
 
-            for (let i = 0; i < tickers.length; i++) {
-                const symbol = tickers[i];
-                this.logger.info('ScreenshotService', `📊 [${i + 1}/${tickers.length}] Processing ${symbol}`);
-
-                await this.searchSymbol(symbol);
-                if (!this.isInitialSetupComplete) {
-                    await this.configureChartLayout();
-                    this.isInitialSetupComplete = true;
-                }
-
-                await this.selectTimeInterval(this.config.screenshot.intervals.top);
-                if (i === 0) await this.switchToExtendedHours();
-                await this.zoomOutChart();
-                const chartTop = await this.takeScreenshot(symbol, "top");
-
-                await this.selectTimeInterval(this.config.screenshot.intervals.bottom);
-                const chartBottom = await this.takeScreenshot(symbol, "bottom");
-
-                const stitched = await this.stitchImages([chartTop, chartBottom]);
-                await this.sendToTelegram(stitched, symbol);
-                await this.cleanupFiles([chartTop, chartBottom, stitched]);
-            }
-        } catch (error) {
-            this.logger.error('ScreenshotService', `Queue processing failed: ${error.message}`);
-        } finally {
-            await this.cleanup();
-            this.isInitialSetupComplete = false;
-        }
+/**
+ * Public function to capture a single ticker
+ */
+export async function captureTicker(ticker, config, interval = "15") {
+    if (!serviceInstance) {
+        serviceInstance = new PersistentScreenshotService(config);
     }
+    return await serviceInstance.capture(ticker, interval);
+}
 
-    async cleanupFiles(files) {
-        await Promise.all(files.map(file => fs.unlink(file).catch(() => { })));
+/**
+ * Public function to capture a 2x2 grid of intervals
+ */
+export async function captureStitchedTicker(ticker, config, intervals = ["D", "240", "15", "1"]) {
+    if (!serviceInstance) {
+        serviceInstance = new PersistentScreenshotService(config);
+    }
+    return await serviceInstance.captureStitched(ticker, intervals);
+}
+
+/**
+ * Legacy support for the queue function
+ */
+export async function processTickerQueue(tickers, config, telegramService, interval = "15") {
+    for (const ticker of tickers) {
+        const imagePath = await captureTicker(ticker, config, interval);
+        if (imagePath && telegramService?.sendPhoto) {
+            await telegramService.sendPhoto(imagePath, `📊 *${ticker}* (${interval}m)\n#ScreenStonks`);
+        }
     }
 }
 
 /**
- * Public API for screenshot processing
+ * Export for manual cleanup if needed
  */
-export async function processTickerQueue(tickers, config, telegramService) {
-    const service = new ScreenshotService(config, telegramService);
-    await service.processTickerQueue(tickers);
+export async function shutdownScreenshotService() {
+    if (serviceInstance) {
+        await serviceInstance.close();
+        serviceInstance = null;
+    }
 }
