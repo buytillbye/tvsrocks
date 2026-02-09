@@ -71,7 +71,24 @@ export const createStockMessage = (stock, isUpdate = false, prevChange = null, c
  * @param {boolean} isStarting - True if starting, false if stopping
  * @returns {string} Formatted status message
  */
-export const createStatusMessage = (isStarting) =>
-    isStarting
-        ? "🟢 Stocks10 premarket watcher started (ET 04:00–09:30)"
-        : "🔴 Stocks10 premarket watcher stopped (outside ET 04:00–09:30)";
+export const createStatusMessage = (createStatusMessage) =>
+    createStatusMessage
+        ? "🟢 ScreenStonks premarket watcher started (ET 04:00–09:30)"
+        : "🔴 ScreenStonks premarket watcher stopped (outside ET 04:00–09:30)";
+
+/**
+ * Creates a startup message with configuration parameters
+ * @param {Config} config - Configuration object
+ * @returns {string} Formatted startup message
+ */
+export const createStartupMessage = (config) => {
+    const title = `🤖 *ScreenStonks Bot (${config.scanIntervalMs / 1000}s)*`;
+    const pre = `🌅 *PRE*: >${config.premarketThreshold}%, >$0.8, >50K, Flt<15M, Step:+${config.premarketAlertStep}%`;
+    const mkt = `🔔 *MKT*: >${config.rvolThreshold}x, >$1.0, >5M, Step:+${config.rvolAlertStep}`;
+
+    return [
+        title,
+        pre,
+        mkt
+    ].join('\n');
+};

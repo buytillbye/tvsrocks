@@ -18,7 +18,8 @@ export {
     maskToken,
     formatNum,
     createStockMessage,
-    createStatusMessage
+    createStatusMessage,
+    createStartupMessage
 } from './format.js';
 
 // Re-export state management

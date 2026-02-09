@@ -1,5 +1,5 @@
 {
-  "name": "stocks10-watcher",
+  "name": "screenstonks-watcher",
   "version": "1.0.0",
   "description": "Functional stock monitoring application with Telegram notifications for premarket trading",
   "type": "module",

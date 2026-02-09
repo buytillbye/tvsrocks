@@ -3,7 +3,7 @@
  * Functional Stocks 10%+ watcher → TG notifications (ESM) + авто-режим премаркету (ET 04:00–09:30)
  */
 import { parseConfig, validateConfig } from "./config/index.js";
-import { maskToken } from "./core/utils/index.js";
+import { maskToken, createStartupMessage } from "./core/utils/index.js";
 import { createTelegramService } from "./services/telegram.js";
 import { createScanner } from "./services/scanner.js";
 import { createRvolService } from "./services/rvolService.js";
@@ -42,9 +42,10 @@ const createApp = async () => {
 
         return Object.freeze({
             start: async () => {
-                logger.info('App', "=== Stocks10 watcher (premarket auto) стартує ===");
+                logger.info('App', "=== ScreenStonks watcher (premarket auto) стартує ===");
 
                 await telegramService.initialize();
+                await telegramService.sendMessage(createStartupMessage(config));
 
                 const launchPromise = telegramService.launch()
                     .catch(err => {
