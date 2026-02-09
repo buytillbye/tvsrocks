@@ -67,6 +67,7 @@ export const createRvolService = (config, telegramService, scanner = TvScanner) 
                     (isUpdate ? ` (was ${prevValue.toFixed(2)}x)` : "") + "\n" +
                     `Price: *$${stock.close.toFixed(2)}*\n` +
                     `Change: *${stock.change.toFixed(2)}%*\n` +
+                    `Float: *${(stock.float_shares_outstanding / 1000000).toFixed(2)}M*\n` +
                     `Volume: *${(stock.volume / 1000000).toFixed(2)}M*\n` +
                     `Premarket: *${stock.premarket_change.toFixed(2)}%*`;
 

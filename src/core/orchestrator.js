@@ -73,16 +73,24 @@ export const createOrchestrator = (config, services, timeUtils = DEFAULT_TIME_UT
     };
 
     /**
-     * Stops the orchestrator
+     * Stops the orchestrator and all managed services gracefully
      */
-    const stop = () => {
+    const stop = async () => {
         const { orchestratorTimer } = stateManager.get();
         if (orchestratorTimer) clearInterval(orchestratorTimer);
 
-        // Stop all services
-        Object.values(services).forEach(service => {
-            if (service.stop) service.stop();
-        });
+        // Stop all services concurrently and wait for their termination
+        await Promise.all(
+            Object.values(services).map(async (service) => {
+                if (service.stop) {
+                    try {
+                        await service.stop();
+                    } catch (e) {
+                        logger.error('Orchestrator', `Failed to stop service: ${e.message}`);
+                    }
+                }
+            })
+        );
 
         logger.info('Orchestrator', '🛑 Orchestrator stopped');
     };

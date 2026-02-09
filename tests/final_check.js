@@ -38,7 +38,15 @@ const mockTimeUtils = {
     isMarketNow: () => mockTime.inMarket
 };
 
-const createGrowthRow = (symbol, change) => ({ s: symbol, d: ["Name", 150, 0, change, change, 1000000, 0, 0, 10000000, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 150] });
+const createGrowthRow = (symbol, change) => {
+    const d = new Array(30).fill(0);
+    d[1] = change;   // premarket_change
+    d[2] = 10000000; // float
+    d[3] = 150;      // close
+    d[11] = 500000;  // volume
+    d[21] = 149;     // premarket_close
+    return { s: symbol, d };
+};
 const createRvolRow = (symbol, rvol) => ({ s: symbol, d: ["Name", 0, 0, 0, 0, 0, rvol, 10000000, 150, 0, 0, 0, 0, 10, 0, 0, 0, 0, 2] });
 
 async function run() {

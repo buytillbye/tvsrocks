@@ -15,13 +15,15 @@ import { validateStockData, validateTradingViewResponse } from "../config/valida
  */
 
 /**
- * Validates if stock has acceptable float shares outstanding
+ * Checks if stock is a "low float" candidate
  * @param {Object} stock - Stock data object
- * @returns {boolean} True if float is valid (not null and > 75M)
+ * @returns {boolean} True if float is below 15M (or null)
  */
-export const isValidFloat = (stock) => {
+export const isLowFloat = (stock) => {
     const float = stock.float_shares_outstanding;
-    return float == null || float <= 15000000; // 15M або його чомусь нема
+    // We target stocks with < 15M float to capture maximum volatility
+    const LOW_FLOAT_THRESHOLD = 15000000;
+    return float == null || float <= LOW_FLOAT_THRESHOLD;
 };
 
 /**
@@ -34,19 +36,10 @@ export const filterNewStocks = (stocks, seenSymbols) =>
     stocks
         .map(TvScanner.mapRow)
         .filter(stock => {
-            // Validate each stock before processing
-            const validation = validateStockData(stock);
-            if (!validation.isValid) {
-                console.warn(`Invalid stock data: ${validation.errors.join(', ')}`, stock);
+            if (!isLowFloat(stock)) {
+                console.log(`Filtered out ${stock.symbol}: float ${stock.float_shares_outstanding} is too high (> 15M)`);
                 return false;
             }
-
-            // Check if float is valid (is null or <= 75M)
-            if (!isValidFloat(stock)) {
-                console.log(`Filtered out ${stock.symbol}: float ${stock.float_shares_outstanding} is null or <= 15M`);
-                return false;
-            }
-
             return !seenSymbols.has(stock.symbol);
         });
 
@@ -110,8 +103,8 @@ export const processStockData = async (threshold, state, telegramService, config
             }
 
             // Check if float is valid
-            if (!isValidFloat(stock)) {
-                console.log(`Filtered out ${stock.symbol}: float ${stock.float_shares_outstanding} is null or <= 15M`);
+            if (!isLowFloat(stock)) {
+                console.log(`Filtered out ${stock.symbol}: float ${stock.float_shares_outstanding} is too high (> 15M)`);
                 continue;
             }
 
@@ -128,9 +121,6 @@ export const processStockData = async (threshold, state, telegramService, config
         }
 
         const updatedChanges = new Map(state.lastReportedChanges);
-        // Only update reported changes for stocks that were candidates in THIS scan (all rawStocks)
-        // Actually, we should only update if we are SENDING notifications or if it's the first scan boostrap
-        // Following the existing logic's pattern:
 
         if (alertsToSend.length === 0) {
             logger.scanner.noNewStocks();
