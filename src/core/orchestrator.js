@@ -77,7 +77,10 @@ export const createOrchestrator = (config, services, timeUtils = DEFAULT_TIME_UT
 
         const interval = config.timeouts?.gatekeeperIntervalMs || 30000;
         const orchestratorTimer = setInterval(checkAndToggleServices, interval);
-        stateManager.update(() => ({ orchestratorTimer }));
+
+        stateManager.update(() => ({
+            orchestratorTimer
+        }));
     };
 
     /**

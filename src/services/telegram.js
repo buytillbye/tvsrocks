@@ -158,6 +158,24 @@ export const createTelegramService = (config) => {
             component: 'TelegramService',
             operation: 'sendMessage'
         }),
+        onCommand: (command, handler) => {
+            bot.command(command, async (ctx) => {
+                try {
+                    // Security: only allow commands from the configured chatId
+                    if (ctx.chat.id !== config.chatId) {
+                        logger.warn('TelegramService', `Ignored command from unauthorized chat: ${ctx.chat.id}`);
+                        return;
+                    }
+                    await handler(ctx);
+                } catch (error) {
+                    errorHandler.handle(error, {
+                        component: 'TelegramService',
+                        operation: 'commandHandler',
+                        metadata: { command }
+                    });
+                }
+            });
+        },
         initialize: withRetry(
             errorHandler.wrapAsync(initialize, {
                 component: 'TelegramService',

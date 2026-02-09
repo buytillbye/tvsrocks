@@ -45,6 +45,19 @@ const createApp = async () => {
                 logger.info('App', "=== ScreenStonks watcher (premarket auto) стартує ===");
 
                 await telegramService.initialize();
+
+                // 📊 Register on-demand stats command
+                telegramService.onCommand('stats', async (ctx) => {
+                    const gState = growthScanner.getState();
+                    const rState = rvolScanner.getState();
+
+                    const report = ["📊 *ScreenStonks Stats*"];
+                    report.push(`🌅 PRE: ${gState.lastTotalCount || 0} stocks (${gState.isRunning ? "active" : "off"})`);
+                    report.push(`🔔 MKT: ${rState.lastTotalCount || 0} stocks (${rState.isRunning ? "active" : "off"})`);
+
+                    await ctx.replyWithMarkdown(report.join('\n'));
+                });
+
                 await telegramService.sendMessage(createStartupMessage(config));
 
                 const launchPromise = telegramService.launch()

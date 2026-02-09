@@ -192,8 +192,9 @@ async function getStocks10(config, preMarketThreshold) {
     const dt = Date.now() - t0;
 
     const rows = Array.isArray(data?.data) ? data.data : [];
-    console.log(`[${nowTs()}] ✓ TV ok in ${dt}ms, totalCount=${data?.totalCount ?? "n/a"}, rows=${rows.length}`);
-    return rows;
+    const totalCount = data?.totalCount ?? 0;
+    console.log(`[${nowTs()}] ✓ TV ok in ${dt}ms, totalCount=${totalCount}, rows=${rows.length}`);
+    return { data: rows, totalCount };
 }
 
 // Новий метод для пошуку сплесків RVOL (за наданими користувачем параметрами)
@@ -226,8 +227,9 @@ async function getRvolSurgeStocks(config, rvolThreshold) {
     const dt = Date.now() - t0;
 
     const rows = Array.isArray(data?.data) ? data.data : [];
-    console.log(`[${nowTs()}] ✓ RVOL scan ok in ${dt}ms, totalCount=${data?.totalCount ?? "n/a"}, rows=${rows.length}`);
-    return rows;
+    const totalCount = data?.totalCount ?? 0;
+    console.log(`[${nowTs()}] ✓ RVOL scan ok in ${dt}ms, totalCount=${totalCount}, rows=${rows.length}`);
+    return { data: rows, totalCount };
 }
 
 // Маппер для спеціального RVOL запиту (індекси за COLUMNS_RVOL)

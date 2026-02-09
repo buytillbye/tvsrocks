@@ -12,6 +12,7 @@ import { validateStockData, validateTradingViewResponse } from "../config/valida
  * @property {Map<string, number>} lastReportedChanges - Map of ticker symbols to last reported premarket change
  * @property {boolean} isFirstScan - Whether this is the first scan
  * @property {boolean} sendOnStartup - Whether to send notifications on startup
+ * @property {number} lastTotalCount - Last seen totalCount from API
  */
 
 /**
@@ -76,7 +77,7 @@ export const processStockData = async (threshold, state, telegramService, config
 
     try {
         logger.tradingview.request(1, config.retry.maxAttempts);
-        const rawStocks = await scanner.getStocks10(config, threshold);
+        const { data: rawStocks, totalCount } = await scanner.getStocks10(config, threshold);
 
         // Validate API response
         const validation = validateTradingViewResponse({ data: rawStocks, totalCount: rawStocks.length });
@@ -88,7 +89,10 @@ export const processStockData = async (threshold, state, telegramService, config
 
         if (rawStocks.length === 0) {
             logger.scanner.noData();
-            return state;
+            return {
+                ...state,
+                lastTotalCount: totalCount
+            };
         }
 
         const candidates = rawStocks.map(TvScanner.mapRow);
@@ -174,7 +178,8 @@ export const processStockData = async (threshold, state, telegramService, config
         return {
             ...state,
             lastReportedChanges: updatedChanges,
-            isFirstScan: false
+            isFirstScan: false,
+            lastTotalCount: totalCount
         };
     } catch (error) {
         if (error instanceof TradingViewError) {

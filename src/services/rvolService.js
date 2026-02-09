@@ -21,6 +21,7 @@ export const createRvolService = (config, telegramService, scanner = TvScanner) 
         isRunning: false,
         isStarting: false,
         lastReportedRvol: new Map(), // ticker -> last reported value
+        lastTotalCount: 0,
         scanTimer: null
     });
 
@@ -30,9 +31,12 @@ export const createRvolService = (config, telegramService, scanner = TvScanner) 
     const scanOnce = async () => {
         const state = stateManager.get();
         try {
-            const rawStocks = await scanner.getRvolSurgeStocks(config, config.rvolThreshold);
+            const { data: rawStocks, totalCount } = await scanner.getRvolSurgeStocks(config, config.rvolThreshold);
 
-            if (!rawStocks || rawStocks.length === 0) return;
+            if (!rawStocks || rawStocks.length === 0) {
+                stateManager.update(() => ({ lastTotalCount: totalCount }));
+                return;
+            }
 
             const candidates = rawStocks.map(TvScanner.mapRvolRow);
             const alertsToSend = [];
@@ -55,7 +59,10 @@ export const createRvolService = (config, telegramService, scanner = TvScanner) 
             // Update state with new RVOL values
             const updatedMap = new Map(stateManager.get().lastReportedRvol);
             alertsToSend.forEach(({ stock }) => updatedMap.set(stock.symbol, stock.rvol_intraday_5m));
-            stateManager.update(() => ({ lastReportedRvol: updatedMap }));
+            stateManager.update(() => ({
+                lastReportedRvol: updatedMap,
+                lastTotalCount: totalCount
+            }));
 
             // Send alerts
             for (const { stock, prevValue } of alertsToSend) {

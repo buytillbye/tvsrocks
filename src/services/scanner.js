@@ -22,6 +22,7 @@ export const createScanner = (config, telegramService) => {
         isFirstScan: true,
         lastReportedChanges: new Map(),
         sendOnStartup: config.sendOnStartup,
+        lastTotalCount: 0,
         scanTimer: null
     });
 
