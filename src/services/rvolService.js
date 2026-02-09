@@ -101,6 +101,7 @@ export const createRvolService = (config, telegramService) => {
 
     return Object.freeze({
         start,
-        stop
+        stop,
+        getState: stateManager.get
     });
 };

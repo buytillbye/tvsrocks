@@ -9,7 +9,8 @@ export {
     nyNow as getCurrentNYTime,
     isTimeInRange,
     isWeekend,
-    isPremarketNow as isPremarketTime
+    isPremarketNow as isPremarketTime,
+    isMarketNow
 } from './time.js';
 
 // Re-export formatting utilities

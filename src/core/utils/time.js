@@ -9,7 +9,7 @@
  */
 
 /**
- * @typedef {Object} PremarketHours
+ * @typedef {Object} MarketHours
  * @property {string} start - Start time in HH:MM format
  * @property {string} end - End time in HH:MM format
  */
@@ -74,11 +74,19 @@ export const isTimeInRange = (currentTime, startTime, endTime) => {
 
 /**
  * Checks if current time is within premarket hours (ET, Mon-Fri)
- * @param {PremarketHours} premarketHours - Premarket time configuration
+ * @param {MarketHours} premarketHours - Premarket time configuration
  * @returns {boolean} True if currently in premarket hours
  */
 export const isPremarketNow = (premarketHours) => {
     const { hhmm, weekday } = nyNow();
-    return !isWeekend(weekday) &&
-        isTimeInRange(hhmm, premarketHours.start, premarketHours.end);
+    return !isWeekend(weekday) && isTimeInRange(hhmm, premarketHours.start, premarketHours.end);
+};
+
+/**
+ * Checks if current time is within regular market hours (ET, Mon-Fri, 09:30-16:00)
+ * @returns {boolean} True if currently in regular market hours
+ */
+export const isMarketNow = () => {
+    const { hhmm, weekday } = nyNow();
+    return !isWeekend(weekday) && isTimeInRange(hhmm, "09:30", "16:00");
 };

@@ -7,6 +7,7 @@ import { maskToken } from "./core/utils/index.js";
 import { createTelegramService } from "./services/telegram.js";
 import { createScanner } from "./services/scanner.js";
 import { createRvolService } from "./services/rvolService.js";
+import { createOrchestrator } from "./core/orchestrator.js";
 import { createLogger } from "./core/logger.js";
 import { createGlobalErrorHandler, ConfigurationError } from "./core/errorHandler.js";
 import { validateConfig as validateConfigData } from "./config/validation.js";
@@ -34,8 +35,9 @@ const createApp = async () => {
         logger.info('App', `CFG → BOT_TOKEN: ${maskToken(config.botToken)}, CHAT_ID: ${config.chatId}, THREAD_ID: ${config.threadId}`);
 
         const telegramService = createTelegramService(config);
-        const scanner = createScanner(config, telegramService);
-        const rvolService = createRvolService(config, telegramService);
+        const growthScanner = createScanner(config, telegramService);
+        const rvolScanner = createRvolService(config, telegramService);
+        const orchestrator = createOrchestrator(config, { growthScanner, rvolScanner });
         const globalErrorHandler = createGlobalErrorHandler(telegramService, logger);
 
         return Object.freeze({
@@ -50,8 +52,7 @@ const createApp = async () => {
                         throw err;
                     });
 
-                scanner.startGatekeeper();
-                rvolService.start();
+                orchestrator.start();
 
                 // Wait for launch to complete
                 await launchPromise;
@@ -59,8 +60,8 @@ const createApp = async () => {
                 logger.info('App', "Application started successfully");
             },
             shutdown: async () => {
-                await scanner.shutdown();
-                rvolService.stop();
+                orchestrator.stop();
+                if (growthScanner.shutdown) await growthScanner.shutdown();
             },
             sendErrorMessage: telegramService.sendMessage,
             handleGlobalError: globalErrorHandler

@@ -21,8 +21,7 @@ export const createScanner = (config, telegramService) => {
         isFirstScan: true,
         lastReportedChanges: new Map(),
         sendOnStartup: config.sendOnStartup,
-        scanTimer: null,
-        gateTimer: null
+        scanTimer: null
     });
 
     /**
@@ -48,11 +47,7 @@ export const createScanner = (config, telegramService) => {
         }
     };
 
-    /**
-     * Starts the scanner with status notification
-     * @returns {Promise<void>}
-     */
-    const startScanner = async () => {
+    const start = async () => {
         const state = stateManager.get();
         if (state.isRunning) return;
 
@@ -72,16 +67,12 @@ export const createScanner = (config, telegramService) => {
         } catch (error) {
             errorHandler.handle(error, {
                 component: 'ScannerService',
-                operation: 'startScanner'
+                operation: 'start'
             });
         }
     };
 
-    /**
-     * Stops the scanner with status notification
-     * @returns {Promise<void>}
-     */
-    const stopScanner = async () => {
+    const stop = async () => {
         const state = stateManager.get();
         if (!state.isRunning) return;
 
@@ -100,55 +91,12 @@ export const createScanner = (config, telegramService) => {
         } catch (error) {
             errorHandler.handle(error, {
                 component: 'ScannerService',
-                operation: 'stopScanner'
+                operation: 'stop'
             });
         }
     };
 
-    /**
-     * Checks premarket status and manages scanner state
-     * @returns {Promise<void>}
-     */
-    const checkPremarket = async () => {
-        try {
-            const { hhmm, weekday } = getCurrentNYTime();
-            const inPremarket = isPremarketTime(config.premarketHours);
-            const state = stateManager.get();
 
-            logger.scanner.premarket(weekday, hhmm, inPremarket);
-
-            if (inPremarket && !state.isRunning) {
-                await startScanner();
-            } else if (!inPremarket && state.isRunning) {
-                await stopScanner();
-            }
-        } catch (error) {
-            errorHandler.handle(error, {
-                component: 'ScannerService',
-                operation: 'checkPremarket'
-            });
-        }
-    };
-
-    /**
-     * Starts the premarket gatekeeper with configurable interval
-     * @returns {void}
-     */
-    const startGatekeeper = () => {
-        try {
-            checkPremarket(); // Initial check
-            const gatekeeperInterval = config.timeouts?.gatekeeperIntervalMs || 30000;
-            const gateTimer = setInterval(checkPremarket, gatekeeperInterval);
-            stateManager.update(() => ({ gateTimer }));
-
-            logger.info('ScannerService', `Gatekeeper started with ${gatekeeperInterval}ms interval`);
-        } catch (error) {
-            errorHandler.handle(error, {
-                component: 'ScannerService',
-                operation: 'startGatekeeper'
-            });
-        }
-    };
 
     /**
      * Gracefully shuts down the scanner service
@@ -160,10 +108,9 @@ export const createScanner = (config, telegramService) => {
 
             const state = stateManager.get();
 
-            if (state.gateTimer) clearInterval(state.gateTimer);
             if (state.scanTimer) clearInterval(state.scanTimer);
 
-            await stopScanner().catch(error => {
+            await stop().catch(error => {
                 logger.warn('ScannerService', `Error during scanner stop: ${error.message}`);
             });
 
@@ -185,9 +132,13 @@ export const createScanner = (config, telegramService) => {
     };
 
     return Object.freeze({
-        startGatekeeper: errorHandler.wrap(startGatekeeper, {
+        start: errorHandler.wrapAsync(start, {
             component: 'ScannerService',
-            operation: 'startGatekeeper'
+            operation: 'start'
+        }),
+        stop: errorHandler.wrapAsync(stop, {
+            component: 'ScannerService',
+            operation: 'stop'
         }),
         shutdown: errorHandler.wrapAsync(shutdown, {
             component: 'ScannerService',
