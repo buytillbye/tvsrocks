@@ -19,7 +19,7 @@ export const createScanner = (config, telegramService) => {
     const stateManager = createStateManager({
         isRunning: false,
         isFirstScan: true,
-        seenSymbols: new Set(),
+        lastReportedChanges: new Map(),
         sendOnStartup: config.sendOnStartup,
         scanTimer: null,
         gateTimer: null
@@ -63,7 +63,7 @@ export const createScanner = (config, telegramService) => {
             stateManager.update(() => ({
                 isRunning: true,
                 isFirstScan: true,
-                seenSymbols: new Set()
+                lastReportedChanges: new Map()
             }));
 
             await scanOnce();

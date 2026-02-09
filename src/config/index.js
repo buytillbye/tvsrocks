@@ -14,6 +14,7 @@ import "dotenv/config";
  * @property {number} rvolThreshold - RVOL surge threshold
  * @property {number} rvolIntervalMs - RVOL scan interval
  * @property {number} rvolAlertStep - Increment step for repeated alerts
+ * @property {number} premarketAlertStep - Increment step for premarket growth alerts
  * @property {Object} premarketHours - Premarket trading hours
  * @property {string} premarketHours.start - Start time (HH:MM)
  * @property {string} premarketHours.end - End time (HH:MM)
@@ -56,6 +57,7 @@ export const parseConfig = () => Object.freeze({
     rvolThreshold: Number(process.env.RVOL_THRESHOLD || 2),
     rvolIntervalMs: Number(process.env.RVOL_INTERVAL_MS || 10000),
     rvolAlertStep: Number(process.env.RVOL_ALERT_STEP || 1.0),
+    premarketAlertStep: Number(process.env.PREMARKET_ALERT_STEP || 1.0),
 
     // Trading hours configuration
     premarketHours: Object.freeze({

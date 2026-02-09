@@ -9,7 +9,7 @@ import { validateStockData, validateTradingViewResponse } from "../config/valida
 
 /**
  * @typedef {Object} StockState
- * @property {Set} seenSymbols - Set of previously seen stock symbols
+ * @property {Map<string, number>} lastReportedChanges - Map of ticker symbols to last reported premarket change
  * @property {boolean} isFirstScan - Whether this is the first scan
  * @property {boolean} sendOnStartup - Whether to send notifications on startup
  */
@@ -62,11 +62,11 @@ export const extractSymbols = (rawStocks) =>
  * Determines whether to send notifications based on scan state
  * @param {boolean} isFirstScan - Whether this is first scan
  * @param {boolean} sendOnStartup - Whether to send on startup
- * @param {Array} newStocks - Array of new stocks
+ * @param {number} newStocksCount - Number of candidate stocks to alert
  * @returns {boolean} Whether to send notifications
  */
-export const shouldSendNotifications = (isFirstScan, sendOnStartup, newStocks) =>
-    newStocks.length > 0 && (sendOnStartup || !isFirstScan);
+export const shouldSendNotifications = (isFirstScan, sendOnStartup, newStocksCount) =>
+    newStocksCount > 0 && (sendOnStartup || !isFirstScan);
 
 /**
  * Processes stock data with enhanced logging and error handling
@@ -97,31 +97,70 @@ export const processStockData = async (threshold, state, telegramService, config
             return state;
         }
 
-        const newStocks = filterNewStocks(rawStocks, state.seenSymbols);
-        const updatedSymbols = new Set([...state.seenSymbols, ...extractSymbols(rawStocks)]);
+        const candidates = rawStocks.map(TvScanner.mapRow);
+        const alertsToSend = [];
 
-        if (newStocks.length === 0) {
-            logger.scanner.noNewStocks();
-            return { ...state, seenSymbols: updatedSymbols };
+        for (const stock of candidates) {
+            // Validate each stock before processing
+            const validation = validateStockData(stock);
+            if (!validation.isValid) {
+                console.warn(`Invalid stock data: ${validation.errors.join(', ')}`, stock);
+                continue;
+            }
+
+            // Check if float is valid
+            if (!isValidFloat(stock)) {
+                console.log(`Filtered out ${stock.symbol}: float ${stock.float_shares_outstanding} is null or <= 15M`);
+                continue;
+            }
+
+            const prevChange = state.lastReportedChanges.get(stock.symbol);
+
+            // Alert conditions:
+            // 1. Never seen before
+            // 2. Current change is higher than last reported + step
+            const shouldAlert = prevChange === undefined || (stock.premarket_change >= prevChange + config.premarketAlertStep);
+
+            if (shouldAlert) {
+                alertsToSend.push({ stock, prevChange });
+            }
         }
 
-        if (!shouldSendNotifications(state.isFirstScan, state.sendOnStartup, newStocks)) {
-            logger.scanner.bootstrapSuppressed(newStocks.length);
+        const updatedChanges = new Map(state.lastReportedChanges);
+        // Only update reported changes for stocks that were candidates in THIS scan (all rawStocks)
+        // Actually, we should only update if we are SENDING notifications or if it's the first scan boostrap
+        // Following the existing logic's pattern:
+
+        if (alertsToSend.length === 0) {
+            logger.scanner.noNewStocks();
             return {
                 ...state,
-                seenSymbols: updatedSymbols,
+                isFirstScan: false
+            };
+        }
+
+        if (!shouldSendNotifications(state.isFirstScan, state.sendOnStartup, alertsToSend.length)) {
+            logger.scanner.bootstrapSuppressed(alertsToSend.length);
+            // Record initial values to suppress future alerts until they grow
+            alertsToSend.forEach(({ stock }) => updatedChanges.set(stock.symbol, stock.premarket_change));
+            return {
+                ...state,
+                lastReportedChanges: updatedChanges,
                 isFirstScan: false
             };
         }
 
         // Send notifications for new stocks with error handling
-        const sendPromises = newStocks.map(async (stock) => {
+        const sendPromises = alertsToSend.map(async ({ stock, prevChange }) => {
             try {
-                const message = createStockMessage(stock);
+                const isUpdate = prevChange !== undefined;
+                const message = createStockMessage(stock, isUpdate, prevChange);
                 logger.scanner.newStock(stock.symbol, stock.premarket_change.toFixed(2));
 
                 const result = await telegramService.sendMessage(message);
-                if (!result.success) {
+                if (result.success) {
+                    updatedChanges.set(stock.symbol, stock.premarket_change);
+                } else {
                     logger.error('StockService', `Failed to send notification for ${stock.symbol}`, {
                         error: result.error?.message
                     });
@@ -133,7 +172,6 @@ export const processStockData = async (threshold, state, telegramService, config
                     operation: 'sendNotification',
                     metadata: { symbol: stock.symbol, change: stock.premarket_change }
                 });
-                // Don't throw - continue processing other stocks
                 return { success: false, error };
             }
         });
@@ -142,7 +180,7 @@ export const processStockData = async (threshold, state, telegramService, config
 
         return {
             ...state,
-            seenSymbols: updatedSymbols,
+            lastReportedChanges: updatedChanges,
             isFirstScan: false
         };
     } catch (error) {
