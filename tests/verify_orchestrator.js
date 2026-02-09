@@ -1,7 +1,7 @@
 /**
  * Verification script for Professional Orchestrator Architecture
  */
-import { createOrchestrator } from './src/core/orchestrator.js';
+import { createOrchestrator } from '../src/core/orchestrator.js';
 
 // --- CONFIGURATION ---
 const config = {

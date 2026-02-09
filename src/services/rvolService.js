@@ -10,9 +10,10 @@ import { createErrorHandler } from "../core/errorHandler.js";
  * Creates RVOL service
  * @param {Object} config - Configuration object
  * @param {Object} telegramService - Telegram service instance
+ * @param {Object} [scanner=TvScanner] - Optional scanner implementation for testing
  * @returns {Object} RVOL service instance
  */
-export const createRvolService = (config, telegramService) => {
+export const createRvolService = (config, telegramService, scanner = TvScanner) => {
     const logger = createLogger();
     const errorHandler = createErrorHandler(logger);
 
@@ -28,7 +29,7 @@ export const createRvolService = (config, telegramService) => {
     const scanOnce = async () => {
         const state = stateManager.get();
         try {
-            const rawStocks = await TvScanner.getRvolSurgeStocks(config, config.rvolThreshold);
+            const rawStocks = await scanner.getRvolSurgeStocks(config, config.rvolThreshold);
 
             if (!rawStocks || rawStocks.length === 0) return;
 
@@ -85,7 +86,10 @@ export const createRvolService = (config, telegramService) => {
         if (state.isRunning) return;
 
         logger.info('RvolService', "🚀 RVOL Listener started");
-        stateManager.update(() => ({ isRunning: true }));
+        stateManager.update(() => ({
+            isRunning: true,
+            lastReportedRvol: new Map() // Reset on start for a fresh session
+        }));
 
         await scanOnce();
         const scanTimer = setInterval(scanOnce, config.rvolIntervalMs);

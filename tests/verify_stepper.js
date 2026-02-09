@@ -2,7 +2,7 @@
  * Verification script for testing stepper logic and theories.
  * You can modify mockData to see how the system reacts to different price/change scenarios.
  */
-import { processStockData } from './src/services/stock.js';
+import { processStockData } from '../src/services/stock.js';
 
 // --- CONFIGURATION ---
 const config = {
