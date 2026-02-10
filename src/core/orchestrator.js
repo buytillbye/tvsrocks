@@ -2,12 +2,11 @@
  * @fileoverview Central service orchestrator for managing time-based execution
  */
 import { isPremarketTime } from "./utils/index.js";
-// import { isMarketNow } from "./utils/index.js"; // [DISABLED] Market Scanner
+import { isMarketNow } from "./utils/index.js";
 import { createLogger } from "./logger.js";
 import { createStateManager } from "./utils/state.js";
 
-const DEFAULT_TIME_UTILS = { isPremarketTime };
-// const DEFAULT_TIME_UTILS = { isPremarketTime, isMarketNow }; // [DISABLED] Market Scanner
+const DEFAULT_TIME_UTILS = { isPremarketTime, isMarketNow };
 
 /**
  * Creates a service orchestrator
@@ -34,9 +33,9 @@ export const createOrchestrator = (config, services, timeUtils = DEFAULT_TIME_UT
             stateManager.update(() => ({ isProcessing: true }));
 
             const inPremarket = timeUtils.isPremarketTime(config.premarketHours);
-            // const inMarket = timeUtils.isMarketNow(); // [DISABLED] Market Scanner
+            const inMarket = timeUtils.isMarketNow();
 
-            const { growthScanner } = services;
+            const { growthScanner, marketScanner } = services;
 
             // 1. Manage Premarket Growth Scanner
             if (inPremarket) {
@@ -51,20 +50,20 @@ export const createOrchestrator = (config, services, timeUtils = DEFAULT_TIME_UT
                 }
             }
 
-            // =================================================================
-            // [DISABLED] Market Scanner — RVOL management (will be rewritten)
-            // =================================================================
-            // if (inMarket) {
-            //     if (!rvolScanner.getState().isRunning && !rvolScanner.getState().isStarting) {
-            //         logger.info('Orchestrator', '🔔 Market opened. Starting RVOL Scanner...');
-            //         await rvolScanner.start();
-            //     }
-            // } else {
-            //     if (rvolScanner.getState().isRunning) {
-            //         logger.info('Orchestrator', '🔔 Market closed. Stopping RVOL Scanner...');
-            //         await rvolScanner.stop();
-            //     }
-            // }
+            // 2. Manage Market Scanner (Shadow Velocity)
+            if (marketScanner) {
+                if (inMarket) {
+                    if (!marketScanner.getState().isRunning) {
+                        logger.info('Orchestrator', '🔥 Market opened. Starting Shadow Velocity Scanner...');
+                        await marketScanner.start();
+                    }
+                } else {
+                    if (marketScanner.getState().isRunning) {
+                        logger.info('Orchestrator', '🔥 Market closed. Stopping Shadow Velocity Scanner...');
+                        await marketScanner.stop();
+                    }
+                }
+            }
         } catch (error) {
             logger.error('Orchestrator', `Error in check cycle: ${error.message}`);
         } finally {

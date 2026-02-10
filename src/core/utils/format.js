@@ -84,7 +84,7 @@ export const createStatusMessage = (createStatusMessage) =>
 export const createStartupMessage = (config) => {
     const title = `🤖 *ScreenStonks Bot (${config.scanIntervalMs / 1000}s)*`;
     const pre = `🌅 *PRE*: >${config.premarketThreshold}%, >$0.8, >50K, Flt<15M, Step:+${config.premarketAlertStep}%`;
-    const mkt = `🔔 *MKT*: >${config.rvolThreshold}x, >$1.0, >5M, Step:+${config.rvolAlertStep}`;
+    const mkt = `🔥 *MKT*: Shadow Velocity (${config.marketScanIntervalMs / 1000}s scan, ${config.marketDashboardIntervalMs / 1000}s dash)`;
 
     return [
         title,

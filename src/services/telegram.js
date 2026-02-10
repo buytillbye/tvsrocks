@@ -189,6 +189,70 @@ export const createTelegramService = (config) => {
             component: 'TelegramService',
             operation: 'sendPhoto'
         }),
+
+        /**
+         * Sends message with HTML parse mode (for monospace tables)
+         * @param {string} text - HTML-formatted message
+         * @returns {Promise<Object>} Send result with message object
+         */
+        sendMessageHTML: errorHandler.wrapAsync(async (text) => {
+            try {
+                const opts = { ...createSendOptions(true), parse_mode: 'HTML' };
+                const msg = await bot.telegram.sendMessage(config.chatId, String(text), opts);
+                logger.telegram.sent(msg.message_id, msg.chat.id, config.threadId);
+                return { success: true, message: msg };
+            } catch (error) {
+                const code = error?.response?.error_code;
+                const desc = error?.response?.description || error.message;
+                logger.telegram.error(code, desc);
+                return { success: false, error };
+            }
+        }, { component: 'TelegramService', operation: 'sendMessageHTML' }),
+
+        /**
+         * Edits an existing message (for dashboard updates)
+         * @param {number} messageId - ID of message to edit
+         * @param {string} text - New HTML-formatted text
+         * @returns {Promise<Object>} Edit result
+         */
+        editMessage: errorHandler.wrapAsync(async (messageId, text) => {
+            try {
+                const opts = { parse_mode: 'HTML', disable_web_page_preview: true };
+                if (config.threadId) opts.message_thread_id = config.threadId;
+                const msg = await bot.telegram.editMessageText(
+                    config.chatId, messageId, undefined, String(text), opts
+                );
+                return { success: true, message: msg };
+            } catch (error) {
+                const code = error?.response?.error_code;
+                const desc = error?.response?.description || error.message;
+                // 400 "message is not modified" is not a real error
+                if (code === 400 && desc?.includes('not modified')) {
+                    return { success: true, notModified: true };
+                }
+                logger.telegram.error(code, desc);
+                return { success: false, error };
+            }
+        }, { component: 'TelegramService', operation: 'editMessage' }),
+
+        /**
+         * Pins a message in the chat
+         * @param {number} messageId - ID of message to pin
+         * @returns {Promise<Object>} Pin result
+         */
+        pinMessage: errorHandler.wrapAsync(async (messageId) => {
+            try {
+                await bot.telegram.pinChatMessage(config.chatId, messageId, {
+                    disable_notification: true
+                });
+                return { success: true };
+            } catch (error) {
+                const desc = error?.response?.description || error.message;
+                logger.error('TelegramService', `Pin failed: ${desc}`);
+                return { success: false, error };
+            }
+        }, { component: 'TelegramService', operation: 'pinMessage' }),
+
         onCommand: (command, handler) => {
             bot.command(command, async (ctx) => {
                 try {

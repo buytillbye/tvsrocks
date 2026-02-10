@@ -54,10 +54,12 @@ export const parseConfig = () => Object.freeze({
     premarketThreshold: Number(process.env.PREMARKET_THRESHOLD || 10),
     scanIntervalMs: Number(process.env.SCAN_INTERVAL_MS || 10000),
     sendOnStartup: String(process.env.SEND_ON_STARTUP || "false") === "true",
-    // [DISABLED] Market Scanner — RVOL config (will be rewritten)
-    // rvolThreshold: Number(process.env.RVOL_THRESHOLD || 2),
-    // rvolIntervalMs: Number(process.env.RVOL_INTERVAL_MS || 10000),
-    // rvolAlertStep: Number(process.env.RVOL_ALERT_STEP || 1.0),
+    // Market Scanner (Shadow Velocity) configuration
+    marketScanIntervalMs: Number(process.env.MARKET_SCAN_INTERVAL_MS || 10000),
+    marketDashboardIntervalMs: Number(process.env.MARKET_DASHBOARD_INTERVAL_MS || 30000),
+    marketAlertCooldownMs: Number(process.env.MARKET_ALERT_COOLDOWN_MS || 300000),
+    marketRvolPumpDelta: Number(process.env.MARKET_RVOL_PUMP_DELTA || 5),
+    marketDumpThreshold: Number(process.env.MARKET_DUMP_THRESHOLD || -2),
     premarketAlertStep: Number(process.env.PREMARKET_ALERT_STEP || 1.0),
 
     // Trading hours configuration
