@@ -190,10 +190,18 @@ const mockTelegram = {
     sendMessage: async (text, opts) => {
         tgMsgIdCounter++;
         tgMessages.push({ id: tgMsgIdCounter, text, ts: Date.now() });
-        return { success: true, messageId: tgMsgIdCounter };
+        return { success: true, message: { message_id: tgMsgIdCounter } };
     },
-    editMessage: async (chatId, messageId, text, opts) => {
+    sendMessageHTML: async (text, opts) => {
+        tgMsgIdCounter++;
+        tgMessages.push({ id: tgMsgIdCounter, text, ts: Date.now(), html: true });
+        return { success: true, message: { message_id: tgMsgIdCounter } };
+    },
+    editMessage: async (messageId, text, opts) => {
         tgEdits.push({ messageId, text, ts: Date.now() });
+        return { success: true, message: { message_id: messageId } };
+    },
+    pinMessage: async (messageId) => {
         return { success: true };
     },
     stop: () => { },
@@ -666,7 +674,7 @@ async function run() {
     const duplicateStarts = count(/already running|isStarting/gi);
     console.log(`    Duplicate start attempts: ${duplicateStarts}`);
 
-    const hangDetect = count(/deadlock|hang|frozen/gi);
+    const hangDetect = count(/\bdeadlock\b|\bhang\b|\bfrozen\b/gi);
     console.log(`    Hang/deadlock hints: ${hangDetect}`);
     assert(hangDetect === 0, 'Log: no hangs detected');
 
