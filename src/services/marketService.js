@@ -22,6 +22,7 @@ import { formatNum } from "../core/utils/format.js";
  * @returns {number|null} SVS score or null if filtered out
  */
 export const calcSVS = (stock) => {
+    if (!stock || typeof stock !== 'object') return null;
     const { rvol_intraday_5m, change_from_open, value_traded, close } = stock;
     if (rvol_intraday_5m == null || change_from_open == null || value_traded == null || close == null) return null;
     if (rvol_intraday_5m < 5.0) return null;
@@ -39,6 +40,7 @@ export const calcSVS = (stock) => {
  * @returns {number|null} HSS score or null if filtered out
  */
 export const calcHSS = (stock) => {
+    if (!stock || typeof stock !== 'object') return null;
     const { change_from_open, value_traded } = stock;
     if (change_from_open == null || value_traded == null) return null;
     if (change_from_open > -2.0) return null;
@@ -78,6 +80,8 @@ const pad = (str, len, alignRight = false) => {
  * Formats the compact dashboard text (HTML monospace)
  */
 export const formatDashboard = (alphaStocks, bearStocks, prevStocks, timestamp) => {
+    const safeAlpha = Array.isArray(alphaStocks) ? alphaStocks.slice(0, 5) : [];
+    const safeBear = Array.isArray(bearStocks) ? bearStocks.slice(0, 5) : [];
     const time = timestamp.toLocaleTimeString("en-US", {
         hour12: false, hour: "2-digit", minute: "2-digit", second: "2-digit",
         timeZone: "America/New_York"
@@ -92,20 +96,20 @@ export const formatDashboard = (alphaStocks, bearStocks, prevStocks, timestamp) 
     lines.push("🚀 <b>ALPHA SPRINT</b> (Long Momentum)");
     lines.push("<code>#  Ticker  Price   %Chg   RVOL   SVS</code>");
 
-    if (alphaStocks.length === 0) {
+    if (safeAlpha.length === 0) {
         lines.push("<code>   (no stocks matching criteria)</code>");
     }
-    for (let i = 0; i < alphaStocks.length; i++) {
-        const s = alphaStocks[i];
-        const ticker = s.symbol.split(":")[1] || s.symbol;
+    for (let i = 0; i < safeAlpha.length; i++) {
+        const s = safeAlpha[i];
+        const ticker = (s.symbol || "").split(":")[1] || s.symbol || "???";
         const emoji = getEmoji(s.symbol, s.change_from_open, prevStocks, now);
-        const svsStr = formatNum(Math.round(s._svs));
+        const svsStr = formatNum(Math.round(s._svs || 0));
 
         lines.push(
             `<code>${pad(i + 1 + ".", 3)}${emoji}${pad(ticker, 6)} ` +
-            `${pad("$" + s.close.toFixed(s.close >= 100 ? 0 : s.close >= 10 ? 1 : 2), 7, true)} ` +
-            `${pad((s.change_from_open >= 0 ? "+" : "") + s.change_from_open.toFixed(0) + "%", 6, true)} ` +
-            `${pad(s.rvol_intraday_5m.toFixed(0) + "x", 6, true)} ` +
+            `${pad("$" + (s.close || 0).toFixed(s.close >= 100 ? 0 : s.close >= 10 ? 1 : 2), 7, true)} ` +
+            `${pad(((s.change_from_open || 0) >= 0 ? "+" : "") + (s.change_from_open || 0).toFixed(0) + "%", 6, true)} ` +
+            `${pad((s.rvol_intraday_5m || 0).toFixed(0) + "x", 6, true)} ` +
             `${pad(svsStr, 6, true)}</code>`
         );
     }
@@ -116,19 +120,19 @@ export const formatDashboard = (alphaStocks, bearStocks, prevStocks, timestamp) 
     lines.push("🐻 <b>INSTITUTIONAL BEAR</b> (Short/Avoid)");
     lines.push("<code>#  Ticker  Price   %Chg   Val($)</code>");
 
-    if (bearStocks.length === 0) {
+    if (safeBear.length === 0) {
         lines.push("<code>   (no stocks matching criteria)</code>");
     }
-    for (let i = 0; i < bearStocks.length; i++) {
-        const s = bearStocks[i];
-        const ticker = s.symbol.split(":")[1] || s.symbol;
+    for (let i = 0; i < safeBear.length; i++) {
+        const s = safeBear[i];
+        const ticker = (s.symbol || "").split(":")[1] || s.symbol || "???";
         const emoji = "🔴";
 
         lines.push(
             `<code>${pad(i + 1 + ".", 3)}${emoji}${pad(ticker, 6)} ` +
-            `${pad("$" + s.close.toFixed(s.close >= 100 ? 0 : s.close >= 10 ? 1 : 2), 7, true)} ` +
-            `${pad(s.change_from_open.toFixed(0) + "%", 6, true)} ` +
-            `${pad("$" + formatNum(s.value_traded), 7, true)}</code>`
+            `${pad("$" + (s.close || 0).toFixed((s.close || 0) >= 100 ? 0 : (s.close || 0) >= 10 ? 1 : 2), 7, true)} ` +
+            `${pad((s.change_from_open || 0).toFixed(0) + "%", 6, true)} ` +
+            `${pad("$" + formatNum(s.value_traded || 0), 7, true)}</code>`
         );
     }
 
