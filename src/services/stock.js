@@ -2,7 +2,7 @@
  * @fileoverview Stock data processing and filtering logic
  */
 import { TvScanner } from "./tradingview.js";
-import { captureStitchedTicker } from "./screenshot.js";
+// import { captureStitchedTicker } from "./screenshot.js"; // [DISABLED] Screenshot service
 import { createStockMessage } from "../core/utils/index.js";
 import { createLogger } from "../core/logger.js";
 import { createErrorHandler, TradingViewError } from "../core/errorHandler.js";
@@ -155,16 +155,11 @@ export const processStockData = async (threshold, state, telegramService, config
                 const message = createStockMessage(stock, isUpdate, prevChange, count);
                 logger.scanner.newStock(stock.symbol, stock.premarket_change.toFixed(2));
 
-                // 🎨 Capture 2x2 grid (1D, 4h, 15m, 1m) for premarket alerts
-                const intervals = config.screenshot.intervals || ["D", "240", "15", "1"];
-                const chartPath = await captureStitchedTicker(stock.symbol, config, intervals);
+                // [DISABLED] Screenshot service
+                // const intervals = config.screenshot?.intervals || ["D", "240", "15", "1"];
+                // const chartPath = await captureStitchedTicker(stock.symbol, config, intervals);
 
-                let result;
-                if (chartPath) {
-                    result = await telegramService.sendPhoto(chartPath, message);
-                } else {
-                    result = await telegramService.sendMessage(message);
-                }
+                const result = await telegramService.sendMessage(message);
 
                 if (result.success) {
                     updatedChanges.set(stock.symbol, { change: stock.premarket_change, count });

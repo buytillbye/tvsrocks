@@ -6,8 +6,8 @@ import { parseConfig, validateConfig } from "./config/index.js";
 import { maskToken, createStartupMessage } from "./core/utils/index.js";
 import { createTelegramService } from "./services/telegram.js";
 import { createScanner } from "./services/scanner.js";
-import { createRvolService } from "./services/rvolService.js";
-import { shutdownScreenshotService } from "./services/screenshot.js";
+// import { createRvolService } from "./services/rvolService.js"; // [DISABLED] Market Scanner
+// import { shutdownScreenshotService } from "./services/screenshot.js"; // [DISABLED] Screenshot service
 import { createOrchestrator } from "./core/orchestrator.js";
 import { createLogger } from "./core/logger.js";
 import { createGlobalErrorHandler, ConfigurationError } from "./core/errorHandler.js";
@@ -37,8 +37,8 @@ const createApp = async () => {
 
         const telegramService = createTelegramService(config);
         const growthScanner = createScanner(config, telegramService);
-        const rvolScanner = createRvolService(config, telegramService);
-        const orchestrator = createOrchestrator(config, { growthScanner, rvolScanner });
+        // const rvolScanner = createRvolService(config, telegramService); // [DISABLED] Market Scanner
+        const orchestrator = createOrchestrator(config, { growthScanner });
         const globalErrorHandler = createGlobalErrorHandler(telegramService, logger);
 
         return Object.freeze({
@@ -50,7 +50,7 @@ const createApp = async () => {
                 // 📊 Register on-demand stats command
                 telegramService.onCommand('stats', async (ctx) => {
                     const gState = growthScanner.getState();
-                    const rState = rvolScanner.getState();
+                    // const rState = rvolScanner.getState(); // [DISABLED] Market Scanner
 
                     const report = ["📊 *ScreenStonks Stats*"];
 
@@ -62,13 +62,16 @@ const createApp = async () => {
                         report.push(`- Last Wave: \`${gState.lastTickers.join(", ")}\``);
                     }
 
-                    report.push(`\n🔔 *MARKET/VOLUME (V):*`);
-                    report.push(`- Status: ${rState.isRunning ? "✅ Active" : "🛑 Off"}`);
-                    report.push(`- Total Scanned (API): *${rState.lastTotalCount || 0}*`);
-                    report.push(`- Alerts Sent: *${rState.alertCount || 0}*`);
-                    if (rState.lastTickers?.length > 0) {
-                        report.push(`- Last Wave: \`${rState.lastTickers.join(", ")}\``);
-                    }
+                    // =============================================================
+                    // [DISABLED] Market Scanner — RVOL stats (will be rewritten)
+                    // =============================================================
+                    // report.push(`\n🔔 *MARKET/VOLUME (V):*`);
+                    // report.push(`- Status: ${rState.isRunning ? "✅ Active" : "🛑 Off"}`);
+                    // report.push(`- Total Scanned (API): *${rState.lastTotalCount || 0}*`);
+                    // report.push(`- Alerts Sent: *${rState.alertCount || 0}*`);
+                    // if (rState.lastTickers?.length > 0) {
+                    //     report.push(`- Last Wave: \`${rState.lastTickers.join(", ")}\``);
+                    // }
 
                     await ctx.replyWithMarkdown(report.join('\n'));
                 });
@@ -91,7 +94,7 @@ const createApp = async () => {
             shutdown: async () => {
                 await orchestrator.stop();
                 if (growthScanner.shutdown) await growthScanner.shutdown();
-                await shutdownScreenshotService();
+                // await shutdownScreenshotService(); // [DISABLED] Screenshot service
             },
             sendErrorMessage: telegramService.sendMessage,
             handleGlobalError: globalErrorHandler

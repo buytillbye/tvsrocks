@@ -41,15 +41,17 @@ const COLUMNS_PREMARKET = Object.freeze([
     "sector.tr", "market", "sector", "premarket_close", "change_from_open"
 ]);
 
-// Фіксований набір колонок для RVOL (з трасування браузера)
-const COLUMNS_RVOL = Object.freeze([
-    "ticker-view", "Value.Traded", "type", "typespecs", "currency",
-    "relative_volume_10d_calc", "relative_volume_intraday|5", "volume",
-    "close", "pricescale", "minmov", "fractional", "minmove2", "change",
-    "float_shares_outstanding_current", "premarket_volume", "market_cap_basic",
-    "fundamental_currency_code", "premarket_change", "change_from_open",
-    "ATRP", "average_volume_10d_calc", "ATR", "volume_change", "gap"
-]);
+// =============================================================================
+// [DISABLED] Market Scanner — RVOL columns (will be rewritten)
+// =============================================================================
+// const COLUMNS_RVOL = Object.freeze([
+//     "ticker-view", "Value.Traded", "type", "typespecs", "currency",
+//     "relative_volume_10d_calc", "relative_volume_intraday|5", "volume",
+//     "close", "pricescale", "minmov", "fractional", "minmove2", "change",
+//     "float_shares_outstanding_current", "premarket_volume", "market_cap_basic",
+//     "fundamental_currency_code", "premarket_change", "change_from_open",
+//     "ATRP", "average_volume_10d_calc", "ATR", "volume_change", "gap"
+// ]);
 
 // Маппер для Premarket (індекси за COLUMNS_PREMARKET)
 function mapRow(row) {
@@ -197,59 +199,59 @@ async function getStocks10(config, preMarketThreshold) {
     return { data: rows, totalCount };
 }
 
-// Новий метод для пошуку сплесків RVOL (за наданими користувачем параметрами)
-async function getRvolSurgeStocks(config, rvolThreshold) {
-    const threshold = rvolThreshold ?? config.rvolThreshold ?? 3;
-    const body = {
-        columns: COLUMNS_RVOL,
-        filter: [
-            { left: "close", operation: "egreater", right: 1 },
-            { left: "volume", operation: "greater", right: 5000000 },
-            { left: "relative_volume_intraday|5", operation: "greater", right: threshold },
-            { left: "is_primary", operation: "equal", right: true }
-        ],
-        ignore_unknown_fields: false,
-        options: { lang: "en" },
-        range: [0, 200],
-        sort: { sortBy: "relative_volume_intraday|5", sortOrder: "desc" },
-        symbols: {},
-        markets: ["america"],
-        filter2: BASE_FILTER2
-    };
-
-    const t0 = Date.now();
-    // Використовуємо ту саму логіку fetch з оригінальними кукі
-    const data = await fetchWithBrowserHeaders(body, {
-        timeoutMs: 15000,
-        retries: 2,
-        cookie: config?.api?.tvCookie
-    });
-    const dt = Date.now() - t0;
-
-    const rows = Array.isArray(data?.data) ? data.data : [];
-    const totalCount = data?.totalCount ?? 0;
-    console.log(`[${nowTs()}] ✓ RVOL scan ok in ${dt}ms, totalCount=${totalCount}, rows=${rows.length}`);
-    return { data: rows, totalCount };
-}
-
-// Маппер для спеціального RVOL запиту (індекси за COLUMNS_RVOL)
-function mapRvolRow(row) {
-    const d = row.d || [];
-    return Object.freeze({
-        symbol: row.s,
-        close: Number(d[8] || 0),             // idx 8 (close)
-        rvol_intraday_5m: Number(d[6] || 0),  // idx 6 (relative_volume_intraday|5)
-        volume: Number(d[7] || 0),            // idx 7 (volume)
-        change: Number(d[13] || 0),           // idx 13 (change)
-        premarket_change: Number(d[18] || 0),  // idx 18 (premarket_change)
-        float_shares_outstanding: Number(d[14] || 0), // idx 14 (float_shares_outstanding_current)
-    });
-}
+// =============================================================================
+// [DISABLED] Market Scanner — RVOL methods (will be rewritten)
+// =============================================================================
+// async function getRvolSurgeStocks(config, rvolThreshold) {
+//     const threshold = rvolThreshold ?? config.rvolThreshold ?? 3;
+//     const body = {
+//         columns: COLUMNS_RVOL,
+//         filter: [
+//             { left: "close", operation: "egreater", right: 1 },
+//             { left: "volume", operation: "greater", right: 5000000 },
+//             { left: "relative_volume_intraday|5", operation: "greater", right: threshold },
+//             { left: "is_primary", operation: "equal", right: true }
+//         ],
+//         ignore_unknown_fields: false,
+//         options: { lang: "en" },
+//         range: [0, 200],
+//         sort: { sortBy: "relative_volume_intraday|5", sortOrder: "desc" },
+//         symbols: {},
+//         markets: ["america"],
+//         filter2: BASE_FILTER2
+//     };
+//
+//     const t0 = Date.now();
+//     const data = await fetchWithBrowserHeaders(body, {
+//         timeoutMs: 15000,
+//         retries: 2,
+//         cookie: config?.api?.tvCookie
+//     });
+//     const dt = Date.now() - t0;
+//
+//     const rows = Array.isArray(data?.data) ? data.data : [];
+//     const totalCount = data?.totalCount ?? 0;
+//     console.log(`[${nowTs()}] ✓ RVOL scan ok in ${dt}ms, totalCount=${totalCount}, rows=${rows.length}`);
+//     return { data: rows, totalCount };
+// }
+//
+// function mapRvolRow(row) {
+//     const d = row.d || [];
+//     return Object.freeze({
+//         symbol: row.s,
+//         close: Number(d[8] || 0),
+//         rvol_intraday_5m: Number(d[6] || 0),
+//         volume: Number(d[7] || 0),
+//         change: Number(d[13] || 0),
+//         premarket_change: Number(d[18] || 0),
+//         float_shares_outstanding: Number(d[14] || 0),
+//     });
+// }
 
 // Freeze експорт, щоб не мутували випадково
 export const TvScanner = Object.freeze({
     getStocks10,
-    getRvolSurgeStocks,
+    // getRvolSurgeStocks,  // [DISABLED] Market Scanner
     mapRow,
-    mapRvolRow,
+    // mapRvolRow,          // [DISABLED] Market Scanner
 });

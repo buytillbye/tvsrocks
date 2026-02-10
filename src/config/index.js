@@ -28,11 +28,11 @@ import "dotenv/config";
  * @property {string} api.tradingViewUrl - TradingView scanner URL
  * @property {string} api.userAgent - Browser user agent
  * @property {string|null} api.tvCookie - Optional TradingView session cookie
- * @property {Object} screenshot - Screenshot service configurations
- * @property {Object} screenshot.viewport - Viewport dimensions
- * @property {Array<string>} screenshot.blockedResources - List of resource types to block
- * @property {Object} screenshot.cookies - Initial cookies for TradingView
- * @property {Array<string>} screenshot.browserArgs - Chromium launch arguments
+ * @property {Object} screenshot - [DISABLED] Screenshot service configurations
+ * // @property {Object} screenshot.viewport - Viewport dimensions
+ * // @property {Array<string>} screenshot.blockedResources - List of resource types to block
+ * // @property {Object} screenshot.cookies - Initial cookies for TradingView
+ * // @property {Array<string>} screenshot.browserArgs - Chromium launch arguments
  */
 
 /**
@@ -54,9 +54,10 @@ export const parseConfig = () => Object.freeze({
     premarketThreshold: Number(process.env.PREMARKET_THRESHOLD || 10),
     scanIntervalMs: Number(process.env.SCAN_INTERVAL_MS || 10000),
     sendOnStartup: String(process.env.SEND_ON_STARTUP || "false") === "true",
-    rvolThreshold: Number(process.env.RVOL_THRESHOLD || 2),
-    rvolIntervalMs: Number(process.env.RVOL_INTERVAL_MS || 10000),
-    rvolAlertStep: Number(process.env.RVOL_ALERT_STEP || 1.0),
+    // [DISABLED] Market Scanner — RVOL config (will be rewritten)
+    // rvolThreshold: Number(process.env.RVOL_THRESHOLD || 2),
+    // rvolIntervalMs: Number(process.env.RVOL_INTERVAL_MS || 10000),
+    // rvolAlertStep: Number(process.env.RVOL_ALERT_STEP || 1.0),
     premarketAlertStep: Number(process.env.PREMARKET_ALERT_STEP || 1.0),
 
     // Trading hours configuration
@@ -87,22 +88,22 @@ export const parseConfig = () => Object.freeze({
         tvCookie: process.env.TV_COOKIE || null
     }),
 
-    // Screenshot configuration (extracted from screenshot.js)
-    screenshot: Object.freeze({
-        viewport: Object.freeze({ width: 800, height: 600 }),
-        blockedResources: Object.freeze(['image', 'font', 'media']),
-        browserArgs: Object.freeze([
-            '--no-sandbox',
-            '--disable-setuid-sandbox',
-            '--disable-dev-shm-usage',
-            '--disable-gpu',
-            '--disable-web-security',
-            '--disable-features=VizDisplayCompositor',
-            '--no-first-run',
-            '--memory-pressure-off'
-        ]),
-        intervals: ["D", "240", "15", "1"]
-    })
+    // [DISABLED] Screenshot service configuration
+    // screenshot: Object.freeze({
+    //     viewport: Object.freeze({ width: 800, height: 600 }),
+    //     blockedResources: Object.freeze(['image', 'font', 'media']),
+    //     browserArgs: Object.freeze([
+    //         '--no-sandbox',
+    //         '--disable-setuid-sandbox',
+    //         '--disable-dev-shm-usage',
+    //         '--disable-gpu',
+    //         '--disable-web-security',
+    //         '--disable-features=VizDisplayCompositor',
+    //         '--no-first-run',
+    //         '--memory-pressure-off'
+    //     ]),
+    //     intervals: ["D", "240", "15", "1"]
+    // })
 });
 
 /**
