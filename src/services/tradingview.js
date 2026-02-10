@@ -42,16 +42,36 @@ const COLUMNS_PREMARKET = Object.freeze([
 ]);
 
 // =============================================================================
-// [DISABLED] Market Scanner — RVOL columns (will be rewritten)
+// Market Scanner — колонки для Market-годин
 // =============================================================================
-// const COLUMNS_RVOL = Object.freeze([
-//     "ticker-view", "Value.Traded", "type", "typespecs", "currency",
-//     "relative_volume_10d_calc", "relative_volume_intraday|5", "volume",
-//     "close", "pricescale", "minmov", "fractional", "minmove2", "change",
-//     "float_shares_outstanding_current", "premarket_volume", "market_cap_basic",
-//     "fundamental_currency_code", "premarket_change", "change_from_open",
-//     "ATRP", "average_volume_10d_calc", "ATR", "volume_change", "gap"
-// ]);
+const COLUMNS_MARKET = Object.freeze([
+    "ticker-view",                    // idx 0
+    "close",                          // idx 1
+    "type",                           // idx 2
+    "typespecs",                      // idx 3
+    "pricescale",                     // idx 4
+    "minmov",                         // idx 5
+    "fractional",                     // idx 6
+    "minmove2",                       // idx 7
+    "currency",                       // idx 8
+    "Value.Traded",                   // idx 9
+    "relative_volume_intraday|5",     // idx 10
+    "volume",                         // idx 11
+    "float_shares_outstanding_current", // idx 12
+    "float_shares_percent_current",   // idx 13
+    "relative_volume_10d_calc",       // idx 14
+    "change",                         // idx 15
+    "change_from_open",               // idx 16
+    "market_cap_basic",               // idx 17
+    "fundamental_currency_code",      // idx 18
+    "premarket_volume",               // idx 19
+    "premarket_change",               // idx 20
+    "ATRP",                           // idx 21
+    "average_volume_10d_calc",        // idx 22
+    "ATR",                            // idx 23
+    "volume_change",                  // idx 24
+    "gap"                             // idx 25
+]);
 
 // Маппер для Premarket (індекси за COLUMNS_PREMARKET)
 function mapRow(row) {
@@ -200,58 +220,70 @@ async function getStocks10(config, preMarketThreshold) {
 }
 
 // =============================================================================
-// [DISABLED] Market Scanner — RVOL methods (will be rewritten)
+// Market Scanner — отримання даних для Market-годин
 // =============================================================================
-// async function getRvolSurgeStocks(config, rvolThreshold) {
-//     const threshold = rvolThreshold ?? config.rvolThreshold ?? 3;
-//     const body = {
-//         columns: COLUMNS_RVOL,
-//         filter: [
-//             { left: "close", operation: "egreater", right: 1 },
-//             { left: "volume", operation: "greater", right: 5000000 },
-//             { left: "relative_volume_intraday|5", operation: "greater", right: threshold },
-//             { left: "is_primary", operation: "equal", right: true }
-//         ],
-//         ignore_unknown_fields: false,
-//         options: { lang: "en" },
-//         range: [0, 200],
-//         sort: { sortBy: "relative_volume_intraday|5", sortOrder: "desc" },
-//         symbols: {},
-//         markets: ["america"],
-//         filter2: BASE_FILTER2
-//     };
-//
-//     const t0 = Date.now();
-//     const data = await fetchWithBrowserHeaders(body, {
-//         timeoutMs: 15000,
-//         retries: 2,
-//         cookie: config?.api?.tvCookie
-//     });
-//     const dt = Date.now() - t0;
-//
-//     const rows = Array.isArray(data?.data) ? data.data : [];
-//     const totalCount = data?.totalCount ?? 0;
-//     console.log(`[${nowTs()}] ✓ RVOL scan ok in ${dt}ms, totalCount=${totalCount}, rows=${rows.length}`);
-//     return { data: rows, totalCount };
-// }
-//
-// function mapRvolRow(row) {
-//     const d = row.d || [];
-//     return Object.freeze({
-//         symbol: row.s,
-//         close: Number(d[8] || 0),
-//         rvol_intraday_5m: Number(d[6] || 0),
-//         volume: Number(d[7] || 0),
-//         change: Number(d[13] || 0),
-//         premarket_change: Number(d[18] || 0),
-//         float_shares_outstanding: Number(d[14] || 0),
-//     });
-// }
+async function getMarketStocks(config) {
+    const body = {
+        columns: COLUMNS_MARKET,
+        filter: [
+            { left: "close", operation: "egreater", right: 1 },
+            { left: "market_cap_basic", operation: "eless", right: 5000000000 },
+            { left: "volume", operation: "greater", right: 1000000 },
+            { left: "relative_volume_intraday|5", operation: "greater", right: 1.5 },
+            { left: "is_primary", operation: "equal", right: true }
+        ],
+        filter2: BASE_FILTER2,
+        ignore_unknown_fields: false,
+        options: { lang: "en" },
+        range: [0, 100],
+        sort: { sortBy: "Value.Traded", sortOrder: "desc" },
+        symbols: {},
+        markets: ["america"]
+    };
+
+    const t0 = Date.now();
+    const data = await fetchWithBrowserHeaders(body, {
+        timeoutMs: 15000,
+        retries: 2,
+        cookie: config?.api?.tvCookie
+    });
+    const dt = Date.now() - t0;
+
+    const rows = Array.isArray(data?.data) ? data.data : [];
+    const totalCount = data?.totalCount ?? 0;
+    console.log(`[${nowTs()}] ✓ Market scan ok in ${dt}ms, totalCount=${totalCount}, rows=${rows.length}`);
+    return { data: rows, totalCount };
+}
+
+// Маппер для Market (індекси за COLUMNS_MARKET)
+function mapMarketRow(row) {
+    const d = row.d || [];
+    return Object.freeze({
+        symbol: row.s,
+        close: Number(d[1] || 0),
+        value_traded: Number(d[9] || 0),
+        rvol_intraday_5m: Number(d[10] || 0),
+        volume: Number(d[11] || 0),
+        float_shares_outstanding: Number(d[12] || 0),
+        float_shares_percent: Number(d[13] || 0),
+        relative_volume_10d: Number(d[14] || 0),
+        change: Number(d[15] || 0),
+        change_from_open: Number(d[16] || 0),
+        market_cap: Number(d[17] || 0),
+        premarket_volume: Number(d[19] || 0),
+        premarket_change: Number(d[20] || 0),
+        atrp: Number(d[21] || 0),
+        average_volume_10d: Number(d[22] || 0),
+        atr: Number(d[23] || 0),
+        volume_change: Number(d[24] || 0),
+        gap: Number(d[25] || 0),
+    });
+}
 
 // Freeze експорт, щоб не мутували випадково
 export const TvScanner = Object.freeze({
     getStocks10,
-    // getRvolSurgeStocks,  // [DISABLED] Market Scanner
+    getMarketStocks,
     mapRow,
-    // mapRvolRow,          // [DISABLED] Market Scanner
+    mapMarketRow,
 });
