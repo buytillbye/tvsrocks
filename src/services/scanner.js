@@ -67,10 +67,6 @@ export const createScanner = (config, telegramService) => {
             stateManager.update(() => ({
                 isRunning: true,
                 isStarting: false,
-                isFirstScan: true,
-                lastReportedChanges: new Map(),
-                lastTickers: [],
-                alertCount: 0,
                 scanTimer
             }));
         } catch (error) {

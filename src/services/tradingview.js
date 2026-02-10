@@ -86,17 +86,16 @@ function mapRow(row) {
 }
 
 // Низькорівневий fetch з ретраями, referrer/referrerPolicy і логами
-async function fetchWithBrowserHeaders(bodyObj, { timeoutMs = 12000, retries = 2, cookie = null } = {}) {
+async function fetchWithBrowserHeaders(bodyObj, { timeoutMs = 20000, retries = 2, cookie = null } = {}) {
     const headers = { ...BROWSER_HEADERS_BASE };
     if (cookie) headers.cookie = cookie;
 
     const payload = JSON.stringify(bodyObj);
 
     for (let attempt = 0; attempt <= retries; attempt++) {
-        const ts = nowTs();
         const { signal, cancel } = withTimeout(timeoutMs);
         try {
-            console.log(`[${ts}] → TV request (try ${attempt + 1}/${retries + 1})`);
+            console.log(`[${nowTs()}] [TV] → request (try ${attempt + 1}/${retries + 1})`);
             const res = await fetch(TV_URL, {
                 method: "POST",
                 mode: "cors",
@@ -108,12 +107,12 @@ async function fetchWithBrowserHeaders(bodyObj, { timeoutMs = 12000, retries = 2
                 body: payload,
             });
             const text = await res.text();
-            console.log(`[${ts}] ← TV status=${res.status} len=${text.length}`);
+            console.log(`[${nowTs()}] [TV] ← status=${res.status} len=${text.length}`);
 
             if (!res.ok) {
-                if (res.status === 429) console.error("Rate limited (429). Збільш інтервал/додай backoff.");
-                if (res.status === 403) console.error("Forbidden (403). Перевір cookie/заголовки або спробуй без cookie.");
-                if (res.status === 401) console.error("Unauthorized (401). Можливо, COOKIE протух/некоректний.");
+                if (res.status === 429) console.error(`[${nowTs()}] [TV] Rate limited (429). Збільш інтервал/додай backoff.`);
+                if (res.status === 403) console.error(`[${nowTs()}] [TV] Forbidden (403). Перевір cookie/заголовки.`);
+                if (res.status === 401) console.error(`[${nowTs()}] [TV] Unauthorized (401). COOKIE протух/некоректний.`);
                 throw new Error(`HTTP ${res.status}: ${text.slice(0, 200)}`);
             }
             try {
@@ -122,10 +121,10 @@ async function fetchWithBrowserHeaders(bodyObj, { timeoutMs = 12000, retries = 2
                 throw new Error(`Invalid JSON: ${text.slice(0, 200)}`);
             }
         } catch (e) {
-            console.error(`[${ts}] ✖ fetch error:`, e.message);
+            console.error(`[${nowTs()}] [TV] ✖ fetch error: ${e.message}`);
             if (attempt < retries) {
                 const wait = 1000 * Math.pow(2, attempt);
-                console.log(`[${ts}] ⏳ retry in ${wait}ms`);
+                console.log(`[${nowTs()}] [TV] ⏳ retry in ${wait}ms`);
                 await sleep(wait);
                 continue;
             }

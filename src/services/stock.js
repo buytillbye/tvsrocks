@@ -16,34 +16,7 @@ import { validateStockData, validateTradingViewResponse } from "../config/valida
  * @property {number} lastTotalCount - Last seen totalCount from API
  */
 
-/**
- * Checks if stock is a "low float" candidate
- * @param {Object} stock - Stock data object
- * @returns {boolean} True if float is below 15M (or null)
- */
-export const isLowFloat = (stock) => {
-    const float = stock.float_shares_outstanding;
-    // We target stocks with < 15M float to capture maximum volatility
-    const LOW_FLOAT_THRESHOLD = 15000000;
-    return float == null || float <= LOW_FLOAT_THRESHOLD;
-};
 
-/**
- * Filters out stocks that have already been seen
- * @param {Array} stocks - Raw stock data from API
- * @param {Set} seenSymbols - Set of previously seen symbols
- * @returns {Array} New stocks not in seen set
- */
-export const filterNewStocks = (stocks, seenSymbols) =>
-    stocks
-        .map(TvScanner.mapRow)
-        .filter(stock => {
-            if (!isLowFloat(stock)) {
-                console.log(`Filtered out ${stock.symbol}: float ${stock.float_shares_outstanding} is too high (> 15M)`);
-                return false;
-            }
-            return !seenSymbols.has(stock.symbol);
-        });
 
 /**
  * Extracts symbols from raw stock data
@@ -103,13 +76,7 @@ export const processStockData = async (threshold, state, telegramService, config
             // Validate each stock before processing
             const validation = validateStockData(stock);
             if (!validation.isValid) {
-                console.warn(`Invalid stock data: ${validation.errors.join(', ')}`, stock);
-                continue;
-            }
-
-            // Check if float is valid
-            if (!isLowFloat(stock)) {
-                console.log(`Filtered out ${stock.symbol}: float ${stock.float_shares_outstanding} is too high (> 15M)`);
+                logger.warn('StockService', `Invalid stock data: ${validation.errors.join(', ')}`);
                 continue;
             }
 

@@ -49,15 +49,15 @@ export const validateStockData = (stock) => {
         errors.push('Stock must have valid symbol string');
     }
 
-    if (typeof stock.premarket_change !== 'number' || isNaN(stock.premarket_change)) {
+    if (typeof stock.premarket_change !== 'number' || !isFinite(stock.premarket_change)) {
         errors.push('Stock must have valid premarket_change number');
     }
 
-    if (typeof stock.float_shares_outstanding !== 'number' || isNaN(stock.float_shares_outstanding)) {
+    if (typeof stock.float_shares_outstanding !== 'number' || !isFinite(stock.float_shares_outstanding)) {
         errors.push('Stock must have valid float_shares_outstanding number');
     }
 
-    if (typeof stock.premarket_volume !== 'number' || isNaN(stock.premarket_volume)) {
+    if (typeof stock.premarket_volume !== 'number' || !isFinite(stock.premarket_volume)) {
         errors.push('Stock must have valid premarket_volume number');
     }
 
