@@ -227,7 +227,6 @@ async function getMarketStocks(config) {
         columns: COLUMNS_MARKET,
         filter: [
             { left: "close", operation: "egreater", right: 1 },
-            { left: "market_cap_basic", operation: "eless", right: 5000000000 },
             { left: "volume", operation: "greater", right: 1000000 },
             { left: "relative_volume_intraday|5", operation: "greater", right: 1.5 },
             { left: "is_primary", operation: "equal", right: true }
