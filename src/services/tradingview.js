@@ -282,30 +282,15 @@ function mapMarketRow(row) {
 // Catalyst Sniper — отримання кандидатів для Watchlist (Pre-market)
 // =============================================================================
 async function getCatalystSetupStocks(config) {
-    // Merge BASE_FILTER2 with Catalyst-specific OR logic
-    const catalystFilter2 = {
-        operator: "and",
-        operands: [
-            ...BASE_FILTER2.operands,
-            {
-                operation: {
-                    operator: "or",
-                    operands: [
-                        { expression: { left: "premarket_change", operation: "greater", right: 4 } },   // Strategy A: Gap Up
-                        { expression: { left: "premarket_change", operation: "less", right: -8 } }     // Strategy B: Gap Down
-                    ]
-                }
-            }
-        ]
-    };
-
     const body = {
         columns: COLUMNS_PREMARKET,
         filter: [
             { left: "premarket_volume", operation: "greater", right: 500000 },
+            { left: "premarket_change", operation: "not_in_range", right: [-8, 4] },
+            { left: "premarket_close", operation: "egreater", right: 0.8 },
             { left: "is_primary", operation: "equal", right: true }
         ],
-        filter2: catalystFilter2,
+        filter2: BASE_FILTER2,
         ignore_unknown_fields: false,
         options: { lang: "en" },
         range: [0, 100],
