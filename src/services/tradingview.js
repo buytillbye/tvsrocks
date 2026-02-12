@@ -214,7 +214,7 @@ async function getStocks10(config, preMarketThreshold) {
 
     const rows = Array.isArray(data?.data) ? data.data : [];
     const totalCount = data?.totalCount ?? 0;
-    console.log(`[${nowTs()}] ✓ TV ok in ${dt}ms, totalCount=${totalCount}, rows=${rows.length}`);
+    console.log(`[${nowTs()}] ✓ Premarket Scan (Threshold: ${threshold}%): Found ${totalCount} matching, returning ${rows.length} rows`);
     return { data: rows, totalCount };
 }
 
@@ -249,7 +249,7 @@ async function getMarketStocks(config) {
 
     const rows = Array.isArray(data?.data) ? data.data : [];
     const totalCount = data?.totalCount ?? 0;
-    console.log(`[${nowTs()}] ✓ Market scan ok in ${dt}ms, totalCount=${totalCount}, rows=${rows.length}`);
+    console.log(`[${nowTs()}] ✓ Market Scan ($1M+ Vol, 1.5x RVOL): Found ${totalCount} matching, returning ${rows.length} rows`);
     return { data: rows, totalCount };
 }
 
@@ -304,6 +304,8 @@ async function getCatalystSetupStocks(config) {
         retries: 2,
         cookie: config?.api?.tvCookie
     });
+
+    console.log(`[${nowTs()}] ✓ Catalyst Setup (500k+ Vol, Gaps [-8, 4]): Found ${data?.totalCount || 0} candidates`);
 
     return {
         data: Array.isArray(data?.data) ? data.data : [],

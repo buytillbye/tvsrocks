@@ -208,23 +208,29 @@ export const createMarketService = (config, telegramService, scanner = TvScanner
             const stocks = rawStocks.map(scanner.mapMarketRow);
 
             // Calculate scores
-            const alphaRanked = stocks
+            const alphaPool = stocks
                 .map(s => {
                     const svs = calcSVS(s);
                     return svs !== null ? { ...s, _svs: svs } : null;
                 })
-                .filter(Boolean)
-                .sort((a, b) => b._svs - a._svs)
-                .slice(0, TOP_N);
+                .filter(Boolean);
 
-            const bearRanked = stocks
+            const bearPool = stocks
                 .map(s => {
                     const hss = calcHSS(s);
                     return hss !== null ? { ...s, _hss: hss } : null;
                 })
-                .filter(Boolean)
+                .filter(Boolean);
+
+            const alphaRanked = [...alphaPool]
+                .sort((a, b) => b._svs - a._svs)
+                .slice(0, TOP_N);
+
+            const bearRanked = [...bearPool]
                 .sort((a, b) => b._hss - a._hss)
                 .slice(0, TOP_N);
+
+            logger.info("MarketScanner", `📊 Raw: ${stocks.length} | Pass: ${alphaPool.length} alpha, ${bearPool.length} bear`);
 
             // ── Detect alert triggers ──
             const now = Date.now();

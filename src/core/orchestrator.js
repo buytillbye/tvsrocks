@@ -38,12 +38,19 @@ export const createOrchestrator = (config, services, timeUtils = DEFAULT_TIME_UT
 
             const inPremarket = timeUtils.isPremarketTime(config.premarketHours);
             const inMarket = timeUtils.isMarketNow();
+            const now = timeUtils.getNow();
+            const timeStr = now.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
 
-            const { growthScanner, marketScanner } = services;
+            logger.info('Orchestrator', `--- Cycle Check [NY ${timeStr}] ---`);
+            logger.info('Orchestrator', `Phase: Premarket=${inPremarket ? 'YES' : 'NO'}, Market=${inMarket ? 'OPEN' : 'CLOSED'}`);
+
+            const { growthScanner, marketScanner, catalystScanner } = services;
 
             // 1. Manage Premarket Growth Scanner
             if (growthScanner && inPremarket) {
-                if (!growthScanner.getState().isRunning && !growthScanner.getState().isStarting) {
+                const s = growthScanner.getState();
+                logger.info('Orchestrator', `GrowthScanner: ${s.isRunning ? 'RUNNING' : 'STOPPED'} (Alerts: ${s.alertCount})`);
+                if (!s.isRunning && !s.isStarting) {
                     logger.info('Orchestrator', '🌅 Premarket started. Starting Growth Scanner...');
                     await growthScanner.start();
                 }
@@ -56,13 +63,15 @@ export const createOrchestrator = (config, services, timeUtils = DEFAULT_TIME_UT
 
             // 2. Manage Market Scanner (Shadow Velocity)
             if (marketScanner) {
+                const s = marketScanner.getState();
+                logger.info('Orchestrator', `MarketScanner: ${s.isRunning ? 'RUNNING' : 'STOPPED'} (Alpha: ${s.alphaCount}, Bear: ${s.bearCount})`);
                 if (inMarket) {
-                    if (!marketScanner.getState().isRunning) {
+                    if (!s.isRunning) {
                         logger.info('Orchestrator', '🔥 Market opened. Starting Shadow Velocity Scanner...');
                         await marketScanner.start();
                     }
                 } else {
-                    if (marketScanner.getState().isRunning) {
+                    if (s.isRunning) {
                         logger.info('Orchestrator', '🔥 Market closed. Stopping Shadow Velocity Scanner...');
                         await marketScanner.stop();
                     }
@@ -70,33 +79,33 @@ export const createOrchestrator = (config, services, timeUtils = DEFAULT_TIME_UT
             }
 
             // 3. Manage Catalyst Sniper (Gap & Reverse)
-            const { catalystScanner } = services;
             if (catalystScanner) {
-                const now = timeUtils.getNow();
                 const isOffDay = timeUtils.isWeekend(now);
-                const hours = now.getHours();
-                const minutes = now.getMinutes();
-                const timeStr = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+                const currentTimeStr = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
 
-                const inCatalystSetup = !isOffDay && timeStr >= "08:00" && timeStr < "09:30";
-                const inCatalystActive = !isOffDay && timeStr >= "09:30" && timeStr < "13:30";
+                const inCatalystSetup = !isOffDay && currentTimeStr >= "08:00" && currentTimeStr < "09:30";
+                const inCatalystActive = !isOffDay && currentTimeStr >= "09:30" && currentTimeStr < "13:30";
+
+                const s = catalystScanner.getState();
+                const mode = s.isRunning ? (s.isWatchlistOnly ? 'WATCHLIST' : 'ACTIVE') : 'OFF';
+                logger.info('Orchestrator', `CatalystScanner: ${mode} (Watchlist: ${s.watchlistSize})`);
 
                 if (inCatalystSetup) {
-                    if (!catalystScanner.getState().isRunning) {
+                    if (!s.isRunning) {
                         logger.info('Orchestrator', '🎯 Catalyst setup phase (08:00-09:30). Starting Watchlist build...');
                         await catalystScanner.start('watchlist');
-                    } else if (!catalystScanner.getState().isWatchlistOnly) {
+                    } else if (!s.isWatchlistOnly) {
                         catalystScanner.setMode('watchlist');
                     }
                 } else if (inCatalystActive) {
-                    if (!catalystScanner.getState().isRunning) {
+                    if (!s.isRunning) {
                         logger.info('Orchestrator', '🎯 Catalyst active phase (09:30-13:30). Starting alerts...');
                         await catalystScanner.start('active');
-                    } else if (catalystScanner.getState().isWatchlistOnly) {
+                    } else if (s.isWatchlistOnly) {
                         catalystScanner.setMode('active');
                     }
                 } else {
-                    if (catalystScanner.getState().isRunning) {
+                    if (s.isRunning) {
                         logger.info('Orchestrator', '🎯 Catalyst hours ended. Stopping scanner...');
                         await catalystScanner.stop();
                     }

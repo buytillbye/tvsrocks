@@ -61,7 +61,7 @@ Action: ${actionText}`;
                         preVol: s.premarket_volume,
                         score
                     });
-                    logger.info('Catalyst', `+ [WATCHLIST] ${s.symbol} (Gap: ${s.premarket_change.toFixed(1)}%, Vol: ${s.premarket_volume})`);
+                    logger.info('Catalyst', `[+ WATCHLIST] ${s.symbol.split(':')[1] || s.symbol} | Gap: ${s.premarket_change.toFixed(1).padStart(5)}% | Vol: ${(s.premarket_volume / 1000).toFixed(0).padStart(4)}k | Score: ${score.toFixed(1)}`);
                 });
 
                 logger.info('Catalyst', `Watchlist updated: ${state.watchlist.size} candidates total`);
@@ -72,14 +72,10 @@ Action: ${actionText}`;
                     return;
                 }
 
-                logger.info('Catalyst', `Scanning market for ${state.watchlist.size} candidates...`);
-                // To get currentChange, we use getMarketStocks but map from history
-                // Optimization: In real world we'd query ONLY watchlist symbols.
-                // For simplicity here, we fetch market leaders and check if they are in watchlist.
-                // Actually, let's fetch watchlist symbols if possible or just use getMarketStocks.
                 const { data } = await scanner.getMarketStocks(config);
                 const marketData = data.map(scanner.mapMarketRow);
 
+                logger.info('Catalyst', `Active Scan: Checking ${marketData.length} stocks against watchlist...`);
                 for (const s of marketData) {
                     if (state.triggered.has(s.symbol)) continue;
 
@@ -87,20 +83,23 @@ Action: ${actionText}`;
                     if (!candidate) continue;
 
                     const ticker = s.symbol.split(':')[1] || s.symbol;
-                    logger.info('Catalyst', `[CHECK] ${ticker}: Gap=${candidate.gap.toFixed(1)}%, OpenChg=${s.change_from_open.toFixed(2)}%`);
+                    const openDiff = s.change_from_open;
+
+                    // Detailed log for comparison
+                    logger.info('Catalyst', `[CHECK] ${ticker.padEnd(6)} | Gap: ${candidate.gap.toFixed(1).padStart(5)}% | OpenDiff: ${openDiff.toFixed(2).padStart(6)}%`);
 
                     // Strategy A: Fader (Gap Up > 4%, ChangeFromOpen < -0.5%)
-                    if (candidate.gap > 4.0 && s.change_from_open < -0.5) {
-                        logger.info('Catalyst', `!!! TRIGGER: ${ticker} matched FADE pattern !!!`);
-                        const msg = formatAlert({ ...candidate, currentChange: s.change_from_open }, 'FADE (Short)');
+                    if (candidate.gap > 4.0 && openDiff < -0.5) {
+                        logger.info('Catalyst', `🎯 TRIGGER: ${ticker} matched FADE pattern! (Gap ${candidate.gap.toFixed(1)}% & Drop ${openDiff.toFixed(2)}%)`);
+                        const msg = formatAlert({ ...candidate, currentChange: openDiff }, 'FADE (Short)');
                         await telegram.sendMessage(msg);
                         state.triggered.add(s.symbol);
                     }
 
                     // Strategy B: Bounce (Gap Down < -8%, ChangeFromOpen > 0.5%)
-                    else if (candidate.gap < -8.0 && s.change_from_open > 0.5) {
-                        logger.info('Catalyst', `!!! TRIGGER: ${ticker} matched BOUNCE pattern !!!`);
-                        const msg = formatAlert({ ...candidate, currentChange: s.change_from_open }, 'BOUNCE (Long)');
+                    else if (candidate.gap < -8.0 && openDiff > 0.5) {
+                        logger.info('Catalyst', `🎯 TRIGGER: ${ticker} matched BOUNCE pattern! (Gap ${candidate.gap.toFixed(1)}% & Recovery ${openDiff.toFixed(2)}%)`);
+                        const msg = formatAlert({ ...candidate, currentChange: openDiff }, 'BOUNCE (Long)');
                         await telegram.sendMessage(msg);
                         state.triggered.add(s.symbol);
                     }
