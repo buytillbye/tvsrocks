@@ -64,6 +64,39 @@ export const createOrchestrator = (config, services, timeUtils = DEFAULT_TIME_UT
                     }
                 }
             }
+
+            // 3. Manage Catalyst Sniper (Gap & Reverse)
+            const { catalystScanner } = services;
+            if (catalystScanner) {
+                const now = new Date();
+                const hours = now.getHours();
+                const minutes = now.getMinutes();
+                const timeStr = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+
+                const inCatalystSetup = timeStr >= "08:00" && timeStr < "09:30";
+                const inCatalystActive = timeStr >= "09:30" && timeStr < "13:30";
+
+                if (inCatalystSetup) {
+                    if (!catalystScanner.getState().isRunning) {
+                        logger.info('Orchestrator', '🎯 Catalyst setup phase (08:00-09:30). Starting Watchlist build...');
+                        await catalystScanner.start('watchlist');
+                    } else if (!catalystScanner.getState().isWatchlistOnly) {
+                        catalystScanner.setMode('watchlist');
+                    }
+                } else if (inCatalystActive) {
+                    if (!catalystScanner.getState().isRunning) {
+                        logger.info('Orchestrator', '🎯 Catalyst active phase (09:30-13:30). Starting alerts...');
+                        await catalystScanner.start('active');
+                    } else if (catalystScanner.getState().isWatchlistOnly) {
+                        catalystScanner.setMode('active');
+                    }
+                } else {
+                    if (catalystScanner.getState().isRunning) {
+                        logger.info('Orchestrator', '🎯 Catalyst hours ended. Stopping scanner...');
+                        await catalystScanner.stop();
+                    }
+                }
+            }
         } catch (error) {
             logger.error('Orchestrator', `Error in check cycle: ${error.message}`);
         } finally {

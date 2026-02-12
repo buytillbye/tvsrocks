@@ -7,6 +7,7 @@ import { maskToken, createStartupMessage } from "./core/utils/index.js";
 import { createTelegramService } from "./services/telegram.js";
 import { createScanner } from "./services/scanner.js";
 import { createMarketService } from "./services/marketService.js";
+import { createCatalystService } from "./services/catalystService.js";
 import { createOrchestrator } from "./core/orchestrator.js";
 import { createLogger } from "./core/logger.js";
 import { createGlobalErrorHandler, ConfigurationError } from "./core/errorHandler.js";
@@ -37,7 +38,8 @@ const createApp = async () => {
         const telegramService = createTelegramService(config);
         const growthScanner = createScanner(config, telegramService);
         const marketScanner = createMarketService(config, telegramService);
-        const orchestrator = createOrchestrator(config, { growthScanner, marketScanner });
+        const catalystScanner = createCatalystService(config, telegramService);
+        const orchestrator = createOrchestrator(config, { growthScanner, marketScanner, catalystScanner });
         const globalErrorHandler = createGlobalErrorHandler(telegramService, logger);
 
         return Object.freeze({
@@ -50,6 +52,7 @@ const createApp = async () => {
                 telegramService.onCommand('stats', async (ctx) => {
                     const gState = growthScanner.getState();
                     const mState = marketScanner.getState();
+                    const cState = catalystScanner.getState();
 
                     const report = ["📊 *ScreenStonks Stats*"];
 
@@ -60,6 +63,11 @@ const createApp = async () => {
                     if (gState.lastTickers?.length > 0) {
                         report.push(`- Last Wave: \`${gState.lastTickers.join(", ")}\``);
                     }
+
+                    report.push(`\n🎯 *CATALYST SNIPER:*`);
+                    report.push(`- Status: ${cState.isRunning ? "✅ Active" : "🛑 Off"} (${cState.isWatchlistOnly ? "Watchlist" : "Active"})`);
+                    report.push(`- Watchlist size: *${cState.watchlist?.size || 0}*`);
+                    report.push(`- Triggered: *${cState.triggered?.size || 0}*`);
 
                     report.push(`\n🔥 *MARKET (Shadow Velocity):*`);
                     report.push(`- Status: ${mState.isRunning ? "✅ Active" : "🛑 Off"}`);
@@ -89,6 +97,7 @@ const createApp = async () => {
                 await orchestrator.stop();
                 if (growthScanner.shutdown) await growthScanner.shutdown();
                 if (marketScanner.shutdown) await marketScanner.shutdown();
+                if (catalystScanner.stop) await catalystScanner.stop();
             },
             sendErrorMessage: telegramService.sendMessage,
             handleGlobalError: globalErrorHandler

@@ -278,10 +278,49 @@ function mapMarketRow(row) {
     });
 }
 
+// =============================================================================
+// Catalyst Sniper — отримання кандидатів для Watchlist (Pre-market)
+// =============================================================================
+async function getCatalystSetupStocks(config) {
+    const body = {
+        columns: COLUMNS_PREMARKET,
+        filter: [
+            {
+                operation: "or",
+                operands: [
+                    { left: "premarket_change", operation: "greater", right: 4 },   // Strategy A: Gap Up
+                    { left: "premarket_change", operation: "less", right: -8 }     // Strategy B: Gap Down
+                ]
+            },
+            { left: "premarket_volume", operation: "greater", right: 500000 },
+            { left: "is_primary", operation: "equal", right: true }
+        ],
+        filter2: BASE_FILTER2,
+        ignore_unknown_fields: false,
+        options: { lang: "en" },
+        range: [0, 100],
+        sort: { sortBy: "premarket_volume", sortOrder: "desc" },
+        symbols: {},
+        markets: ["america"]
+    };
+
+    const data = await fetchWithBrowserHeaders(body, {
+        timeoutMs: 15000,
+        retries: 2,
+        cookie: config?.api?.tvCookie
+    });
+
+    return {
+        data: Array.isArray(data?.data) ? data.data : [],
+        totalCount: data?.totalCount ?? 0
+    };
+}
+
 // Freeze експорт, щоб не мутували випадково
 export const TvScanner = Object.freeze({
     getStocks10,
     getMarketStocks,
+    getCatalystSetupStocks,
     mapRow,
     mapMarketRow,
 });
