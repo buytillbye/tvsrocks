@@ -86,8 +86,11 @@ export const processStockData = async (threshold, state, telegramService, config
 
             // Alert conditions:
             // 1. Never seen before
-            // 2. Current change is higher than last reported + step
-            const shouldAlert = prevChange === undefined || (stock.premarket_change >= prevChange + config.premarketAlertStep);
+            // 2. Current change has moved significantly in the same direction (further growth or further drop)
+            const diff = prevChange === undefined ? 0 : stock.premarket_change - prevChange;
+            const shouldAlert = prevChange === undefined ||
+                (stock.premarket_change > 0 && diff >= config.premarketAlertStep) ||
+                (stock.premarket_change < 0 && diff <= -config.premarketAlertStep);
 
             if (shouldAlert) {
                 alertsToSend.push({ stock, prevChange, count: prevCount + 1 });

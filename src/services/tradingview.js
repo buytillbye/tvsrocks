@@ -191,7 +191,7 @@ async function getStocks10(config, preMarketThreshold) {
         columns: COLUMNS_PREMARKET,
         filter: [
             { left: "premarket_volume", operation: "greater", right: 50000 },
-            { left: "premarket_change", operation: "greater", right: threshold },
+            { left: "premarket_change", operation: "not_in_range", right: [-threshold, threshold] },
             { left: "premarket_close", operation: "egreater", right: 0.8 },
             { left: "is_primary", operation: "equal", right: true } // Avoid duplicates from secondary listings
         ],
@@ -199,7 +199,7 @@ async function getStocks10(config, preMarketThreshold) {
         ignore_unknown_fields: false,
         options: { lang: "en" },
         range: [0, 100],
-        sort: { sortBy: "premarket_change", sortOrder: "desc" },
+        sort: { sortBy: "premarket_volume", sortOrder: "desc" },
         symbols: {},
         markets: ["america"]
     };
