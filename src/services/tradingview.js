@@ -192,7 +192,7 @@ async function getStocks10(config, preMarketThreshold) {
         filter: [
             { left: "premarket_volume", operation: "greater", right: 50000 },
             { left: "premarket_change", operation: "not_in_range", right: [-threshold, threshold] },
-            { left: "premarket_close", operation: "egreater", right: 0.8 },
+            { left: "premarket_close", operation: "egreater", right: 2.0 },
             { left: "is_primary", operation: "equal", right: true } // Avoid duplicates from secondary listings
         ],
         filter2: BASE_FILTER2,
@@ -287,7 +287,7 @@ async function getCatalystSetupStocks(config) {
         filter: [
             { left: "premarket_volume", operation: "greater", right: 500000 },
             { left: "premarket_change", operation: "not_in_range", right: [-8, 4] },
-            { left: "premarket_close", operation: "egreater", right: 0.8 },
+            { left: "premarket_close", operation: "egreater", right: 2.0 },
             { left: "is_primary", operation: "equal", right: true }
         ],
         filter2: BASE_FILTER2,
