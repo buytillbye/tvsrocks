@@ -62,6 +62,10 @@ export const parseConfig = () => Object.freeze({
     marketDumpThreshold: Number(process.env.MARKET_DUMP_THRESHOLD || -2),
     premarketAlertStep: Number(process.env.PREMARKET_ALERT_STEP || 1.0),
 
+    // Catalyst Sniper configuration
+    catalystWatchlistIntervalMs: Number(process.env.CATALYST_WATCHLIST_INTERVAL_MS || 60000),
+    catalystActiveIntervalMs: Number(process.env.CATALYST_ACTIVE_INTERVAL_MS || 15000),
+
     // Trading hours configuration
     premarketHours: Object.freeze({
         start: "04:00",

@@ -3,7 +3,7 @@
 Додаток підтримує кілька способів розгортання для забезпечення максимальної гнучкості.
 
 ## 1. Docker (Рекомендовано)
-Ми використовуємо легкий образ на базі `alpine` для мінімізації розміру та підвищення безпеки.
+Ми використовуємо легкий та безпечний образ на базі `alpine`. Це забезпечує мінімальний розмір контейнера та швидке розгортання.
 
 ### Збірка образу:
 ```bash
@@ -12,7 +12,11 @@ docker build -t screenstonks-watcher .
 
 ### Запуск контейнера:
 ```bash
-docker run -d --env-file .env --name stocks-bot screenstonks-watcher
+docker run -d \
+  --env-file .env \
+  --name stocks-bot \
+  --restart unless-stopped \
+  screenstonks-watcher
 ```
 
 ## 2. Fly.io
@@ -21,10 +25,11 @@ docker run -d --env-file .env --name stocks-bot screenstonks-watcher
 1. Встановіть `flyctl`.
 2. Авторизуйтесь: `fly auth login`.
 3. Створіть додаток: `fly launch`.
-4. Налаштуйте секрети:
-   ```bash
-   fly secrets set BOT_TOKEN=your_token CHAT_ID=your_id ...
+4. Імпортуйте секрети з `.env` (команда для PowerShell):
+   ```powershell
+   Get-Content .env | fly secrets import
    ```
+   *Або для стандартного Bash/CMD:* `fly secrets import < .env`
 5. Розгорніть: `fly deploy`.
 
 ## 3. Локальний запуск (PM2)

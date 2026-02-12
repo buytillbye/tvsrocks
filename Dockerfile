@@ -13,7 +13,7 @@ COPY . .
 
 # Create non-root user
 RUN addgroup -g 1001 -S nodejs
-RUN adduser -S stocks -u 1001
+RUN adduser -S stocks -G nodejs -u 1001
 
 # Change ownership
 RUN chown -R stocks:nodejs /app
@@ -22,7 +22,7 @@ USER stocks
 # Expose port
 EXPOSE 8080
 
-# Health check
+# Health check (simple check, could be improved)
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
   CMD node -e "console.log('Health check passed')" || exit 1
 
