@@ -1,12 +1,16 @@
 /**
  * @fileoverview Central service orchestrator for managing time-based execution
  */
-import { isPremarketTime } from "./utils/index.js";
-import { isMarketNow } from "./utils/index.js";
+import { isPremarketTime, isMarketNow, isWeekend } from "./utils/index.js";
 import { createLogger } from "./logger.js";
 import { createStateManager } from "./utils/state.js";
 
-const DEFAULT_TIME_UTILS = { isPremarketTime, isMarketNow };
+const DEFAULT_TIME_UTILS = {
+    isPremarketTime,
+    isMarketNow,
+    isWeekend,
+    getNow: () => new Date()
+};
 
 /**
  * Creates a service orchestrator
@@ -38,12 +42,12 @@ export const createOrchestrator = (config, services, timeUtils = DEFAULT_TIME_UT
             const { growthScanner, marketScanner } = services;
 
             // 1. Manage Premarket Growth Scanner
-            if (inPremarket) {
+            if (growthScanner && inPremarket) {
                 if (!growthScanner.getState().isRunning && !growthScanner.getState().isStarting) {
                     logger.info('Orchestrator', '🌅 Premarket started. Starting Growth Scanner...');
                     await growthScanner.start();
                 }
-            } else {
+            } else if (growthScanner) {
                 if (growthScanner.getState().isRunning) {
                     logger.info('Orchestrator', '🌅 Premarket ended. Stopping Growth Scanner...');
                     await growthScanner.stop();
@@ -68,13 +72,14 @@ export const createOrchestrator = (config, services, timeUtils = DEFAULT_TIME_UT
             // 3. Manage Catalyst Sniper (Gap & Reverse)
             const { catalystScanner } = services;
             if (catalystScanner) {
-                const now = new Date();
+                const now = timeUtils.getNow();
+                const isOffDay = timeUtils.isWeekend(now);
                 const hours = now.getHours();
                 const minutes = now.getMinutes();
                 const timeStr = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
 
-                const inCatalystSetup = timeStr >= "08:00" && timeStr < "09:30";
-                const inCatalystActive = timeStr >= "09:30" && timeStr < "13:30";
+                const inCatalystSetup = !isOffDay && timeStr >= "08:00" && timeStr < "09:30";
+                const inCatalystActive = !isOffDay && timeStr >= "09:30" && timeStr < "13:30";
 
                 if (inCatalystSetup) {
                     if (!catalystScanner.getState().isRunning) {
